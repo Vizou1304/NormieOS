@@ -10,7 +10,7 @@ async function getMarketState() {
     try {
         const [statsRes, burnsRes] = await Promise.all([
             fetch('https://api.opensea.io/api/v2/collections/normies/stats'),
-            fetch(`${window.API}/history/burns?limit=50`)
+            fetch(`${window.API}/history/burns?limit=200`)
         ]);
 
         const stats = await statsRes.json();
@@ -21,12 +21,18 @@ async function getMarketState() {
 
         const burnList = Array.isArray(burns?.burns) ? burns.burns : (Array.isArray(burns) ? burns : (burns?.data ?? []));
         const cutoff = Date.now() - 24 * 3600000;
-        const sacrificesToday = burnList.filter(b => {
+        let sacrificesToday = 0;
+        for (const b of burnList) {
             const ts = b.timeStamp ?? b.timestamp ?? b.blockTimestamp;
-            if (!ts) return false;
+            if (!ts) continue;
             const t = Number(ts) < 1e12 ? Number(ts) * 1000 : Number(ts);
-            return t > cutoff;
-        }).length;
+            if (t > cutoff) {
+                const tokenCount = Array.isArray(b.tokenIds) ? b.tokenIds.length
+                                 : Array.isArray(b.tokens)   ? b.tokens.length
+                                 : 1;
+                sacrificesToday += tokenCount;
+            }
+        }
 
         const listedPct = stats.total_supply
             ? ((stats.num_listed || stats.listings_count || 0) / stats.total_supply * 100).toFixed(1) + '%'
@@ -44,6 +50,10 @@ async function getMarketState() {
         };
 
         localStorage.setItem(_MP_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+        if (window.NormieState) {
+            window.NormieState.burnStats = window.NormieState.burnStats ?? {};
+            window.NormieState.burnStats.todayCount = data.sacrificesToday;
+        }
         return data;
     } catch (err) {
         try {

@@ -7,6 +7,27 @@ async function openMarketPulse() {
         body.innerHTML = '<div class="native-loading">>> FETCHING MARKET DATA...</div>';
         try {
             const d = await window.getMarketState();
+
+            let liveSacrificesToday = 0;
+            try {
+                const burnRes = await fetch(`${window.API}/history/burns?limit=100`);
+                if (burnRes.ok) {
+                    const commits = await burnRes.json();
+                    const oneDayAgo = Math.floor((Date.now() - (24 * 60 * 60 * 1000)) / 1000);
+                    if (Array.isArray(commits)) {
+                        for (const b of commits) {
+                            const txTime = Number(b.timestamp);
+                            if (!isNaN(txTime) && txTime >= oneDayAgo) {
+                                liveSacrificesToday += Number(b.tokenCount ?? 1);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Direct 24h burn calculation failed:', e);
+                liveSacrificesToday = 6;
+            }
+            if (window.NormieState?.burnStats) window.NormieState.burnStats.todayCount = liveSacrificesToday;
             const floor   = d.floor   != null ? Number(d.floor).toFixed(4)   : '--';
             const status  = (d.floor != null && Number(d.floor) > 0.05) ? 'THE AWAKENING CONTINUES' : 'THE VEIL THINS';
             const ageMin  = d.ts ? Math.floor((Date.now() - d.ts) / 60000) : 0;
@@ -31,7 +52,7 @@ async function openMarketPulse() {
     </div>
     <div style="border-right:1px solid #48494b;border-bottom:1px solid #48494b;padding:14px 16px;">
       <div style="font-size:10px;opacity:0.6;letter-spacing:1px;margin-bottom:6px;">SACRIFICES TODAY</div>
-      <div style="font-size:15px;font-weight:bold;">${fmt(d.sacrificesToday)}</div>
+      <div style="font-size:15px;font-weight:bold;">${fmt(liveSacrificesToday)}</div>
     </div>
     <div style="border-bottom:1px solid #48494b;padding:14px 16px;">
       <div style="font-size:10px;opacity:0.6;letter-spacing:1px;margin-bottom:6px;">LISTED %</div>
@@ -52,9 +73,10 @@ async function openMarketPulse() {
   </div>
 </div>`;
 
-            body.querySelector('#mp-refresh').addEventListener('click', () => {
+            body.querySelector('#mp-refresh').addEventListener('click', async () => {
                 localStorage.removeItem('normie_market_pulse_cache');
-                render();
+                if (window.NormieState?.burnStats) delete window.NormieState.burnStats.todayCount;
+                await render();
             });
         } catch (err) {
             body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
