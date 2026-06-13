@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NAVIGATOR — NormiesOS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #e3e5e4;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+        }
+        #nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 8px;
+            background: #48494b;
+            flex-shrink: 0;
+        }
+        .nav-btn {
+            background: transparent;
+            border: 1px solid #e3e5e4;
+            color: #e3e5e4;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            padding: 3px 8px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: none;
+        }
+        .nav-btn:hover { background: #e3e5e4; color: #48494b; }
+        #nav-url {
+            flex: 1;
+            border: none;
+            background: #e3e5e4;
+            color: #48494b;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            padding: 4px 8px;
+            outline: none;
+            letter-spacing: 0.5px;
+        }
+        #nav-status {
+            color: #e3e5e4;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            opacity: 0.65;
+            min-width: 60px;
+            text-align: right;
+        }
+        webview {
+            flex: 1;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-bar">
+        <button class="nav-btn" id="btn-back">&#9664;</button>
+        <button class="nav-btn" id="btn-forward">&#9654;</button>
+        <button class="nav-btn" id="btn-refresh">&#8635;</button>
+        <input id="nav-url" type="text" spellcheck="false" autocomplete="off">
+        <button class="nav-btn" id="btn-go">GO</button>
+        <span id="nav-status">READY</span>
+    </div>
+    <webview id="wv" style="flex:1;width:100%;"
+        useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36">
+    </webview>
+    <script>
+        const wv        = document.getElementById('wv');
+        const urlInput  = document.getElementById('nav-url');
+        const status    = document.getElementById('nav-status');
+
+        const params   = new URLSearchParams(window.location.search);
+        const startUrl = params.get('url') || 'https://google.com';
+        wv.src = startUrl;
+        urlInput.value = startUrl;
+
+        function navigate() {
+            let url = urlInput.value.trim();
+            if (!url) return;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+            urlInput.value = url;
+            wv.src = url;
+        }
+
+        document.getElementById('btn-go').addEventListener('click', navigate);
+        urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(); });
+        document.getElementById('btn-back').addEventListener('click', () => wv.canGoBack() && wv.goBack());
+        document.getElementById('btn-forward').addEventListener('click', () => wv.canGoForward() && wv.goForward());
+        document.getElementById('btn-refresh').addEventListener('click', () => wv.reload());
+
+        wv.addEventListener('did-start-loading', () => { status.textContent = 'LOADING'; });
+        wv.addEventListener('did-stop-loading',  () => { status.textContent = 'READY'; });
+        wv.addEventListener('did-navigate',           e => { urlInput.value = e.url; });
+        wv.addEventListener('did-navigate-in-page',   e => { if (e.isMainFrame) urlInput.value = e.url; });
+        wv.addEventListener('page-title-updated',     e => { document.title = e.title + ' — NAVIGATOR'; });
+    </script>
+</body>
+</html>

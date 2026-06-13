@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NormiesOS — Locked</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #48494b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Courier New', Courier, monospace;
+      color: #e3e5e4;
+    }
+    .lock-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .lock-logo {
+      width: 48px;
+      height: 48px;
+      color: #e3e5e4;
+    }
+    .lock-title {
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      color: rgba(227,229,228,0.45);
+    }
+    .lock-msg {
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #e3e5e4;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .lock-divider {
+      width: 120px;
+      height: 1px;
+      background: rgba(227,229,228,0.25);
+    }
+    .lock-btn {
+      background: transparent;
+      color: #e3e5e4;
+      border: 2px solid #e3e5e4;
+      padding: 8px 28px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: none;
+    }
+    .lock-btn:hover {
+      background: #e3e5e4;
+      color: #48494b;
+    }
+    .lock-btn:active {
+      transform: translate(1px, 1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="lock-container">
+    <svg class="lock-logo" viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <rect x="1" y="3" width="2" height="6" fill="currentColor"/>
+      <rect x="3" y="1" width="4" height="2" fill="currentColor"/>
+      <rect x="7" y="1" width="2" height="8" fill="currentColor"/>
+      <rect x="4" y="5" width="2" height="3" fill="currentColor"/>
+    </svg>
+    <div class="lock-title">NORMIES OS</div>
+    <div class="lock-divider"></div>
+    <div class="lock-msg">
+      WALLET DISCONNECTED<br>RECONNECT TO RESUME
+    </div>
+    <button class="lock-btn" onclick="reconnect()">[ RECONNECT ]</button>
+  </div>
+  <script>
+    function reconnect() {
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

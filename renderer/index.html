@@ -1,0 +1,1660 @@
+<!-- renderer/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; frame-src *; connect-src * http://localhost:11434 http://127.0.0.1:11434; img-src * data:">
+    <title>NormiesOS</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/@walletconnect/sign-client/dist/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="desktop-drag.js"></script>
+
+</head>
+<body>
+
+    <!-- WalletConnect QR Modal -->
+    <div id="wc-modal">
+        <div id="wc-inner">
+            <div id="wc-header">
+                <span>SCAN WITH METAMASK MOBILE</span>
+                <button class="dock-start-btn" id="wc-close" style="padding: 2px 8px;">X</button>
+            </div>
+            <div id="wc-qr-container"></div>
+            <div id="wc-status">Initializing...</div>
+        </div>
+    </div>
+
+    <!-- Splash Screen (contient aussi la phase alpha build) -->
+    <div id="splash-screen">
+        <img id="splash-logo" src="https://pbs.twimg.com/profile_images/2048111234621595648/vK-61sKo_400x400.jpg" width="100" height="100" style="image-rendering: pixelated; margin: 0 auto 20px auto; display: block; border-radius: 0; position: relative; top: 30px;" alt="Normies Logo">
+        <div id="splash-title" class="splash-title">NormiesOS</div>
+        <canvas id="boot-progress-canvas" width="200" height="20" style="display:none;"></canvas>
+        <div id="teaser-boot-bar">
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+            <div class="tp-block"></div>
+        </div>
+        <button class="splash-connect-btn" id="splash-connect-btn" style="display:none;">[ CONNECT ]</button>
+        <button id="dev-skip" style="display:none;margin-top:8px;font-size:10px;opacity:0.4;background:transparent;border:none;color:#e3e5e4;cursor:pointer;font-family:'Courier New',monospace;">[ DEV: 0xb488...7AD1 ]</button>
+        <div class="splash-status" id="splash-status"></div>
+        <!-- Phase Alpha Build — caché au départ -->
+        <canvas id="alpha-canvas" width="40" height="40" style="display:none;width:60vh;height:60vh;image-rendering:pixelated;background-color:#e3e5e4;"></canvas>
+        <div id="alpha-build-label" style="display:none;"></div>
+    </div>
+
+    <!-- Desktop -->
+    <div id="desktop">
+        <canvas id="hive-wallpaper"></canvas>
+        <canvas id="mempool-wallpaper"></canvas>
+        <img id="desktop-normie" src="" alt="" class="normie-avatar">
+        <div id="boot-terminal"></div>
+        <div id="desktop-trash" ondblclick="openTrash()" style="position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;z-index:10;width:56px;">
+            <div style="position:relative;">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style="width:40px;height:40px;fill:#48494b;" shape-rendering="crispEdges"><rect x="6" y="0" width="4" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="2" fill="currentColor"/><rect x="3" y="3" width="2" height="10" fill="currentColor"/><rect x="11" y="3" width="2" height="10" fill="currentColor"/><rect x="3" y="13" width="10" height="1" fill="currentColor"/><rect x="6" y="3" width="1" height="9" fill="currentColor"/><rect x="9" y="3" width="1" height="9" fill="currentColor"/></svg>
+                <div id="trash-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#48494b;color:#e3e5e4;font-family:'Courier New',monospace;font-size:10px;min-width:14px;height:14px;line-height:14px;text-align:center;padding:0 2px;pointer-events:none;"></div>
+            </div>
+            <span style="font-family:'Courier New',monospace;font-size:10px;color:#48494b;margin-top:2px;letter-spacing:0.5px;">TRASH</span>
+        </div>
+    </div>
+
+    <!-- Start Menu -->
+    <div id="start-menu">
+        <!-- Status Header -->
+        <div class="sm-status-header">
+            <div class="sm-status-data">
+                <div id="sm-agent-name" style="font-size:11px;font-weight:bold;color:#e3e5e4;letter-spacing:1px;margin-bottom:2px;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                <div id="sm-wallet">-- WALLET --</div>
+                <div class="sm-stat-row">
+                    <span class="sm-stat-lbl">LVL</span>
+                    <div id="sm-level-bits" class="sm-bit-bar">
+                        <span class="sm-bit"></span><span class="sm-bit"></span>
+                        <span class="sm-bit"></span><span class="sm-bit"></span>
+                        <span class="sm-bit"></span><span class="sm-bit"></span>
+                    </div>
+                    <span id="sm-level-val" class="sm-stat-val">--</span>
+                </div>
+                <div class="sm-stat-row">
+                    <span class="sm-stat-lbl">AP</span>
+                    <div id="sm-ap-bar" class="sm-ap-bar"></div>
+                    <span id="sm-ap-val" class="sm-stat-val">--</span>
+                </div>
+                <div class="sm-stat-row" id="sm-prestige-row" style="display:none;">
+                    <span class="sm-stat-lbl" style="width:auto;padding-right:6px;">PST</span>
+                    <span id="sm-prestige-val" class="sm-stat-val" style="width:auto;">--</span>
+                    <span id="sm-agent-count" style="font-size:10px;opacity:0.65;letter-spacing:0.5px;margin-left:4px;"></span>
+                </div>
+            </div>
+            <button id="sm-opensea-btn" style="position:absolute;right:24px;top:16px;background:transparent;border:none;padding:0;display:block;width:48px;height:48px;">
+                <img src="opensea.png" style="width:48px;height:48px;image-rendering:pixelated;cursor:pointer;" alt="OpenSea" data-desc="OPEN OPENSEA">
+            </button>
+        </div>
+
+        <!-- Search bar -->
+        <div style="padding:4px 8px;border-bottom:1px dashed rgba(72,73,75,0.3);background:#e3e5e4;">
+            <input id="sm-search" type="text" placeholder="SEARCH APPS..." autocomplete="off" spellcheck="false"
+                style="width:100%;box-sizing:border-box;border:1px solid rgba(72,73,75,0.3);background:transparent;color:#48494b;font-family:'Courier New',Courier,monospace;font-size:10px;padding:3px 8px;outline:none;letter-spacing:1px;">
+        </div>
+
+        <!-- Pinned (hidden if empty) -->
+        <div id="sm-pinned-cat" class="sm-pinned-section" style="display:none;">
+            <div class="sm-quad-title">[ PINNED ]</div>
+            <div id="sm-pinned-list" class="sm-pinned-list"></div>
+        </div>
+
+        <!-- Icon Grid -->
+        <div id="launcher-apps-grid" class="launcher-apps-grid"></div>
+        <div id="launcher-tabs-bar" class="launcher-tabs-bar"></div>
+
+        <div class="sm-footer">
+            <button id="disconnect-btn">[ DISCONNECT ]</button>
+            <button id="tour-btn">[ TOUR ]</button>
+        </div>
+    </div>
+    <div id="launcher-tooltip"></div>
+
+    <!-- Taskbar -->
+    <div id="normie-dock">
+        <button class="dock-start-btn" id="start-btn">
+            <svg viewBox="0 0 10 10" class="normie-logo" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+                <rect x="1" y="3" width="2" height="6" fill="currentColor"/>
+                <rect x="3" y="1" width="4" height="2" fill="currentColor"/>
+                <rect x="7" y="1" width="2" height="8" fill="currentColor"/>
+                <rect x="4" y="5" width="2" height="3" fill="currentColor"/>
+            </svg>
+        </button>
+        <div class="dock-apps" id="dock-apps"></div>
+        <div id="systray">
+            <span id="mempool-led" title="Mempool heartbeat" style="display:inline-block;width:7px;height:7px;background:#48494b;border:1px solid #e3e5e4;opacity:0.3;vertical-align:middle;margin-right:4px;flex-shrink:0;"></span>
+            <span class="systray-item" id="systray-ollama" title="Ollama status">OLLAMA:--</span>
+            <span class="systray-item" id="systray-net" title="Network status">WIFI:OK</span>
+            <button id="notif-log-btn" title="Notification log" style="position:relative;background:transparent;border:none;padding:2px 4px;cursor:pointer;line-height:0;display:inline-flex;align-items:center;justify-content:center;"><svg viewBox="0 0 16 16" width="14" height="14" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="display:block;pointer-events:none;"><rect x="6" y="1" width="4" height="1" fill="#e3e5e4"/><rect x="4" y="2" width="8" height="1" fill="#e3e5e4"/><rect x="3" y="3" width="10" height="5" fill="#e3e5e4"/><rect x="2" y="8" width="12" height="2" fill="#e3e5e4"/><rect x="1" y="10" width="14" height="1" fill="#e3e5e4"/><rect x="6" y="11" width="4" height="2" fill="#e3e5e4"/><rect x="7" y="13" width="2" height="1" fill="#e3e5e4"/></svg><span id="notif-log-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#48494b;color:#e3e5e4;font-family:'Courier New',monospace;font-size:9px;min-width:13px;height:13px;line-height:13px;text-align:center;padding:0 2px;pointer-events:none;"></span></button>
+        </div>
+        <div id="notif-log-panel" style="display:none;position:fixed;bottom:40px;right:10px;width:280px;max-height:340px;overflow-y:auto;background:#48494b;color:#e3e5e4;border:1px solid #e3e5e4;font-family:'Courier New',monospace;font-size:10px;z-index:9800;box-sizing:border-box;"></div>
+        <div class="dock-clock" id="clock">00:00</div>
+    </div>
+
+    <!-- CRT scanlines overlay -->
+    <div id="crt-overlay"></div>
+    <div id="normie-bubble"></div>
+
+    <script type="module">
+        import { showSystemSplash, animateAlphaBuild, checkOllamaReady } from './boot.js';
+        import { APPS } from './apps-registry.js';
+        import { MempoolMonitor, showMempoolAlert } from './mempool-monitor.js';
+        import { parseNeuralPathway, fetchAgentBinding, fetchHolderTokenIds, fetchAgentsCount, fetchA2AManifest, buildSyntheticA2AManifest } from './normie-api.js';
+        window.fetchA2AManifest = fetchA2AManifest;
+        window.buildSyntheticA2AManifest = buildSyntheticA2AManifest;
+        import { fetchLocalAI, checkOllamaStatus, buildSystemPrompt, applyAgentStatus } from './brain-inspector.js';
+        window.fetchLocalAI = fetchLocalAI;
+        window.checkOllamaStatus = checkOllamaStatus;
+        window.buildSystemPrompt = buildSystemPrompt;
+        window.applyAgentStatus = applyAgentStatus;
+        import { calculatePrestigeScore, calculateWalletPrestige } from './prestige.js';
+        window.calculatePrestigeScore = calculatePrestigeScore;
+        import { NormieNotifier } from './core/notifications.js';
+        const notifier = new NormieNotifier();
+        window._notifier = notifier;
+        window.APPS = APPS;
+        window.animateAlphaBuild = animateAlphaBuild;
+        window.fetchAgentBinding = fetchAgentBinding;
+        window.fetchHolderTokenIds = fetchHolderTokenIds;
+        window.log = log;
+        window.pinAppToDock = pinAppToDock;
+        window.unpinAppFromDock = unpinAppFromDock;
+        window.getAppType = getAppType;
+
+        // ISO TEST MODE — boot sequence restored
+        const WALLET_ADDRESS = ''; // hardcoded wallet removed — user enters address at boot
+        // localStorage.setItem('devMode', 'true');
+
+        const { SignClient } = window['@walletconnect/sign-client'];
+        const API = 'https://api.normies.art';
+        window.API = API;
+        window.OLLAMA = 'http://localhost:11434';
+        window.NORMIE_VOICE_ENABLED = localStorage.getItem('normie_voice_enabled') === 'true';
+        window.activeAlphaGender = 'male';
+        window.cacheAlphaGender = function() {
+            const id    = window.currentAlphaId;
+            const meta  = (id && window.NormieState?.allMetadata?.[String(id)]) || window.NormieState?.alpha?.meta;
+            const attrs = Array.isArray(meta?.attributes) ? meta.attributes : [];
+            window.activeAlphaGender = (attrs.find(a => String(a.trait_type ?? '').toLowerCase() === 'gender')?.value ?? 'male').toLowerCase();
+        };
+        window.normieSpeak = function(text) {
+            if (!window.NORMIE_VOICE_ENABLED) return;
+            if (!window.electronAPI?.speakNormie) return;
+            window.electronAPI.speakNormie(text, window.activeAlphaGender || 'male');
+        };
+        const WC_PROJECT_ID = '8e9d62f70ecd6a8c664107ad87c7caa1';
+        const fmtWallet = addr => (!addr || addr.length < 10) ? addr : addr.slice(0, 6) + '...' + addr.slice(-4).toUpperCase();
+        window.fmtWallet = fmtWallet;
+
+        // if (localStorage.getItem('devMode') === 'true') {
+        //     document.getElementById('splash-screen').style.display = 'none';
+        //     document.getElementById('desktop').style.display = 'block';
+        //     document.getElementById('normie-dock').style.display = 'flex';
+        //     window.currentWalletAddress = '0x8a8035f056af830b7205c58c1dc037f826fc2b92';
+        //     window.NormieState = { address: '0x8a8035f056af830b7205c58c1dc037f826fc2b92', normieIds: [], allMetadata: {}, alpha: null };
+        //     awaken('0x8a8035f056af830b7205c58c1dc037f826fc2b92');
+        // } else {
+        showSystemSplash(() => {
+            const bootBar = document.getElementById('teaser-boot-bar');
+            if (bootBar) bootBar.style.display = 'none';
+            document.getElementById('splash-connect-btn').style.display = '';
+            document.getElementById('dev-skip').style.display = '';
+        });
+        // }
+
+        const appUrls = {
+            canvas:  'https://canvas.normies.art/',
+            minitel: 'https://minitel.normies.art/',
+            market:  'https://blur.io/eth/collection/normies'
+        };
+
+        let zIndexCounter = 100;
+        let wcClient = null;
+        let matrixInterval = null;
+        const startMenu = document.getElementById('start-menu');
+
+        // ── Clock ────────────────────────────────────────────────────
+        setInterval(() => {
+            document.getElementById('clock').innerText =
+                new Date().toLocaleTimeString('en-US', { hour12: false });
+        }, 1000);
+
+        // ── Terminal log ─────────────────────────────────────────────
+        function log(msg) {
+            const t = document.getElementById('boot-terminal');
+            if (t) {
+                let lines = t.innerText.split('\n').filter(l => l.trim() !== '');
+                lines.push(msg);
+                if (lines.length > 8) lines.shift();
+                t.innerText = lines.join('\n');
+            }
+        }
+
+        // ── Start menu — open/close helpers ─────────────────────────
+        const smOpen  = () => {
+            startMenu.classList.add('open');
+            _smRefreshHeader();
+            // Reset launcher to first tab
+            const tabs = document.querySelectorAll('#launcher-tabs-bar .launcher-tab');
+            if (tabs.length) {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabs[0].classList.add('active');
+                _launcherRenderSection(tabs[0].dataset.section);
+            }
+            document.getElementById('sm-search')?.focus();
+        };
+        const smClose = () => {
+            startMenu.classList.remove('open');
+            const s = document.getElementById('sm-search');
+            if (s) { s.value = ''; _smSearchFilter(''); }
+            _launcherHideTooltip();
+        };
+
+        document.getElementById('start-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            startMenu.classList.contains('open') ? smClose() : smOpen();
+        });
+        document.getElementById('desktop').addEventListener('click', smClose);
+
+        // Escape closes, prevent bubbling from menu itself
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && startMenu.classList.contains('open')) smClose();
+        });
+        startMenu.addEventListener('click', e => e.stopPropagation());
+
+        const osBtn = document.getElementById('sm-opensea-btn');
+        if (osBtn) {
+            osBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof smClose === 'function') smClose();
+                const body = createNativeWindow('OPENSEA', '');
+                const win = body.closest('.os-window');
+                if (win) { win.style.width = '1024px'; win.style.height = '720px'; }
+                body.style.padding = '0';
+                body.innerHTML = `<webview src="https://opensea.io/fr/collection/normies" style="width:100%;height:100%;border:none;background:#e3e5e4;" useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"></webview>`;
+            });
+        }
+
+        // ── Search filter ─────────────────────────────────────────────
+        function _smSearchFilter(q) {
+            const term = q.toLowerCase().trim();
+            if (term) {
+                _launcherRenderSection(null, term);
+            } else {
+                _launcherRenderSection(_launcher_activeSection);
+            }
+            // Pinned list (community apps)
+            document.querySelectorAll('#sm-pinned-list .sm-app-btn').forEach(btn => {
+                const name = btn.textContent.toLowerCase();
+                btn.style.display = (!term || name.includes(term)) ? '' : 'none';
+            });
+            const pinnedCat = document.getElementById('sm-pinned-cat');
+            if (pinnedCat) {
+                const anyVisible = [...pinnedCat.querySelectorAll('.sm-app-btn')].some(b => b.style.display !== 'none');
+                pinnedCat.style.display = (anyVisible && (pinnedCat.dataset.wasVisible || !term)) ? '' : 'none';
+            }
+        }
+        document.getElementById('sm-search')?.addEventListener('input', e => _smSearchFilter(e.target.value));
+        document.getElementById('sm-search')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const first = document.querySelector('#launcher-apps-grid .launcher-app-item');
+                first?.click();
+            }
+            if (e.key === 'Escape') smClose();
+            e.stopPropagation();
+        });
+
+        // ── Header refresh on open ────────────────────────────────────
+        function _smRefreshHeader() {
+            const persona   = window.currentAgentPersona;
+            const nameEl    = document.getElementById('sm-agent-name');
+            const prestEl   = document.getElementById('sm-prestige-val');
+            const prestRow  = document.getElementById('sm-prestige-row');
+            const countEl   = document.getElementById('sm-agent-count');
+
+            if (persona?.name && nameEl) {
+                nameEl.textContent = persona.name.toUpperCase();
+                nameEl.style.display = '';
+            }
+            const prestige = window.walletPrestige;
+            if (prestige != null && prestEl) {
+                prestEl.textContent = Math.round(prestige);
+                prestRow.style.display = '';
+            }
+            const agentCount = window.NormieState?.agents?.length;
+            if (agentCount && countEl) countEl.textContent = `${agentCount}/1500`;
+        }
+
+        // ── Disconnect ───────────────────────────────────────────────
+        document.getElementById('tour-btn').addEventListener('click', () => {
+            localStorage.removeItem('normieOS_tour_v3');
+            document.getElementById('start-menu').classList.remove('open');
+            window.runGuidedTour();
+        });
+
+        document.getElementById('disconnect-btn').addEventListener('click', async () => {
+            startMenu.classList.remove('open');
+            if (wcClient) {
+                try {
+                    const sessions = Object.values(wcClient.session.getAll());
+                    for (const s of sessions) await wcClient.disconnect({ topic: s.topic, reason: { code: 6000, message: 'User disconnected' } });
+                } catch (_) {}
+                wcClient = null;
+            }
+            window.currentWalletAddress = null;
+            updateStatusBits(0, 0);
+            document.getElementById('boot-terminal').innerText = '';
+            document.getElementById('desktop-normie').src = '';
+            document.getElementById('sm-wallet').innerText = '';
+            document.getElementById('splash-status').innerText = '';
+            document.querySelectorAll('.os-window').forEach(w => w.remove());
+            const bs = document.getElementById('alpha-build-screen');
+            bs?.classList.remove('active');
+            bs?.style.removeProperty('opacity');
+            bs?.style.removeProperty('transition');
+            document.getElementById('desktop')?.style.setProperty('display', 'none');
+            document.getElementById('normie-dock')?.style.setProperty('display', 'none');
+            // Reset splash : re-montrer éléments boot, cacher canvas
+            ['splash-logo','splash-title','teaser-boot-bar'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = '';
+            });
+            document.getElementById('splash-connect-btn')?.style.setProperty('display', 'none');
+            document.getElementById('alpha-canvas')?.style.setProperty('display', 'none');
+            document.getElementById('alpha-build-label')?.style.setProperty('display', 'none');
+            const splash = document.getElementById('splash-screen');
+            splash?.classList.remove('fade-out');
+            splash?.style.setProperty('display', 'flex');
+            window.electronAPI?.disconnect?.();
+        });
+
+        // ── NormieState — single source of truth ────────────────────
+        window.NormieState   = {
+          utils: {
+            getPiperPath: () => (typeof process !== 'undefined' && process.platform === 'linux')
+              ? '/usr/local/bin/piper'
+              : 'piper'
+          }
+        };
+        window.NormieStreams  = {};
+
+        // ── Text size init ────────────────────────────────────────────
+        (function() {
+            const savedSize = localStorage.getItem('normie-textsize') || 'medium';
+            document.body.setAttribute('data-textsize', savedSize);
+        })();
+
+        const NormieCache = {
+            get: (key) => {
+                try {
+                    const item = localStorage.getItem(`norms_${key}`);
+                    if (!item) return null;
+                    const { data, expires } = JSON.parse(item);
+                    if (Date.now() > expires) { localStorage.removeItem(`norms_${key}`); return null; }
+                    return data;
+                } catch { return null; }
+            },
+            set: (key, data, ttlMs) => {
+                try { localStorage.setItem(`norms_${key}`, JSON.stringify({ data, expires: Date.now() + ttlMs })); } catch {}
+            }
+        };
+        window.NormieCache = NormieCache;
+        const TTL = { TRAITS: 86400000, PERSONA: 3600000, CANVAS: 900000 };
+        window.TTL = TTL;
+
+        function _showFirstBootOverlay() {
+            if (localStorage.getItem('normieOS_tour_v3')) return;
+            const overlay = document.createElement('div');
+            overlay.id = 'tour-prompt';
+            overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10000;background:rgba(72,73,75,0.88);';
+            const agentLabel = window.currentAgentPersona?.name
+                ? `${window.currentAgentPersona.name} — #${window.currentAlphaId}`
+                : `AGENT #${window.currentAlphaId ?? '?'}`;
+            overlay.innerHTML = `
+                <div style="background:#48494b;color:#e3e5e4;font-family:'Courier New',Courier,monospace;border:2px solid #e3e5e4;padding:28px 36px;text-align:center;max-width:420px;width:90%;">
+                    <div style="font-size:11px;letter-spacing:2px;color:rgba(227,229,228,0.5);margin-bottom:8px;">${agentLabel}</div>
+                    <div style="font-size:14px;font-weight:bold;letter-spacing:1px;margin-bottom:24px;">Want a guided tour of the OS?</div>
+                    <div style="display:flex;gap:12px;justify-content:center;">
+                        <button id="tour-yes" style="background:transparent;color:#e3e5e4;border:2px solid #e3e5e4;font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ YES, SHOW ME ]</button>
+                        <button id="tour-no"  style="background:transparent;color:#e3e5e4;border:1px solid rgba(227,229,228,0.4);font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ SKIP — TAKE ME IN ]</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const dismiss = (run) => {
+                overlay.remove();
+                if (run) window.runGuidedTour();
+                else localStorage.setItem('normieOS_tour_v3', 'done');
+            };
+            overlay.querySelector('#tour-yes').addEventListener('click', () => dismiss(true));
+            overlay.querySelector('#tour-no').addEventListener('click',  () => dismiss(false));
+            ['#tour-yes','#tour-no'].forEach(sel => {
+                const b = overlay.querySelector(sel);
+                b.addEventListener('mouseenter', () => { b.style.background='#e3e5e4'; b.style.color='#48494b'; });
+                b.addEventListener('mouseleave', () => { b.style.background='transparent'; b.style.color='#e3e5e4'; });
+            });
+        }
+
+        // ── Awaken (post-WC) ─────────────────────────────────────────
+        async function awaken(address) {
+            window.sessionStart = window.sessionStart ?? Date.now();
+            window.currentWalletAddress = address;
+            const short = fmtWallet(address);
+            const splashStatus = document.getElementById('splash-status');
+
+            splashStatus.innerText = 'CHECKING OWNERSHIP...';
+
+            try {
+                const holdRes = await fetch(`${API}/holders/${address}`);
+                const holdData = await holdRes.json();
+                const tokenIds = holdData.tokenIds ?? holdData.ids ?? (Array.isArray(holdData) ? holdData : []);
+
+                if (!Array.isArray(tokenIds) || tokenIds.length === 0) {
+                    splashStatus.innerText = 'ACCESS DENIED: NO NORMIES FOUND';
+                    return;
+                }
+
+                splashStatus.innerText = `${tokenIds.length} NORMIE(S) — ALPHA SCAN...`;
+
+                const CACHE_KEY = `normie_boot_${address}`;
+                const CACHE_TTL = 30 * 60 * 1000;
+                const BATCH     = 20;
+
+                let allMetadata = {};
+                let results     = [];
+
+                // ── Cache hit: reconstruct results instantly ────────────
+                const _raw   = (() => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; } })();
+                const _valid = _raw && (Date.now() - (_raw.ts ?? 0) < CACHE_TTL) && _raw.alphaId;
+                if (_valid) {
+                    allMetadata = _raw.allMetadata ?? {};
+                    results = tokenIds.map(id => ({ id, meta: allMetadata[String(id)] ?? null, score: calculatePrestigeScore(allMetadata[String(id)]) }));
+                    splashStatus.innerText = `${tokenIds.length} NORMIE(S) — CACHE HIT`;
+                }
+
+                // ── Fetch one batch, merge and persist cache ───────────
+                const fetchBatch = async (ids) => {
+                    const batchRes = await Promise.all(ids.map(async id => {
+                        try {
+                            const r = await fetch(`${API}/normie/${id}/metadata`);
+                            const m = await r.json();
+                            return { id, meta: m, score: calculatePrestigeScore(m) };
+                        } catch { return { id, meta: null, score: 0 }; }
+                    }));
+                    batchRes.forEach(r => {
+                        if (r.meta) allMetadata[String(r.id)] = r.meta;
+                        const idx = results.findIndex(x => String(x.id) === String(r.id));
+                        if (idx >= 0) results[idx] = r; else results.push(r);
+                    });
+                    const best = results.reduce((a, b) => b.score > a.score ? b : a);
+                    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata, alphaId: String(best.id) })); } catch {}
+                    batchRes.forEach(r => { if (r.meta) NormieCache.set(`meta_${r.id}`, r.meta, TTL.TRAITS); });
+                };
+
+                // First batch is awaited — needed before desktop can render
+                if (!_valid) await fetchBatch(tokenIds.slice(0, BATCH));
+
+                // ── Alpha from first available results ─────────────────
+                const alpha  = results.reduce((a, b) => b.score > a.score ? b : a);
+                const mainId = alpha.id;
+                const meta   = alpha.meta;
+                const attrs  = Array.isArray(meta?.attributes) ? meta.attributes : [];
+                const getA   = (key) => attrs.find(a => String(a.trait_type ?? '').toLowerCase() === key.toLowerCase())?.value ?? '?';
+
+                window.currentAlphaId = mainId;
+                window.allNormieIds   = tokenIds;
+                window.NormieState = { address, normieIds: tokenIds, allMetadata, alpha: { id: mainId, meta, score: alpha.score }, agents: null, burnStats: null };
+                window.cacheAlphaGender();
+                window.walletPrestige = Math.round(results.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
+                const _pEl  = document.getElementById('sm-prestige-val');
+                const _pRow = document.getElementById('sm-prestige-row');
+                if (_pEl) { _pEl.textContent = window.walletPrestige; if (_pRow) _pRow.style.display = ''; }
+
+                // ── Background: remaining batches + agents/stats/persona ─
+                (async () => {
+                    const startIdx = _valid ? 0 : BATCH;
+                    for (let i = startIdx; i < tokenIds.length; i += BATCH) {
+                        await fetchBatch(tokenIds.slice(i, i + BATCH));
+                        window.NormieState.allMetadata = { ...allMetadata };
+                        if (i + BATCH < tokenIds.length) await new Promise(r => setTimeout(r, 150));
+                    }
+                    if (results.length > 1) {
+                        const newAlpha = results.reduce((a, b) => b.score > a.score ? b : a);
+                        window.NormieState.alpha = { id: newAlpha.id, meta: newAlpha.meta, score: newAlpha.score };
+                        window.walletPrestige = Math.round(results.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
+                        if (_pEl) _pEl.textContent = window.walletPrestige;
+                        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata, alphaId: String(newAlpha.id) })); } catch {}
+                    }
+                    const [agentsData, stats, persona] = await Promise.all([
+                        fetch(`${API}/agents/list?sort=newest&limit=100`).then(r=>r.json()).catch(()=>null),
+                        fetch(`${API}/history/stats`).then(r=>r.json()).catch(()=>null),
+                        fetch(`${API}/agents/info/${mainId}`).then(r=>r.ok?r.json():null).catch(()=>null),
+                    ]);
+                    if (agentsData) { const all = Array.isArray(agentsData) ? agentsData : (agentsData.agents ?? agentsData.items ?? agentsData.data ?? []); window.NormieState.agents = all; NormieCache.set('agents', all, TTL.PERSONA); }
+                    if (stats) window.NormieState.burnStats = stats;
+                    if (persona?.name) {
+                        window.currentAgentPersona = persona;
+                        NormieCache.set(`persona_${mainId}`, persona, TTL.PERSONA);
+                        const nameEl = document.getElementById('sm-agent-name');
+                        if (nameEl) { nameEl.textContent = persona.name.toUpperCase(); nameEl.style.display = ''; }
+                    }
+                })();
+
+                const imgUrl      = meta?.image ?? `${API}/normie/${mainId}/image.png`;
+                const splash      = document.getElementById('splash-screen');
+                const buildCanvas = document.getElementById('alpha-canvas');
+
+                // ISO TEST MODE — full alpha build animation enabled
+                ['splash-logo','splash-title','teaser-boot-bar','splash-connect-btn','splash-status'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                const buildLabel = document.getElementById('alpha-build-label');
+                buildLabel.innerText = `>> BUILDING ALPHA #${mainId}...`;
+                buildLabel.style.display = '';
+                buildCanvas.style.display = 'block';
+                try {
+                    await animateAlphaBuild(imgUrl, buildCanvas);
+                } catch {}
+                splash.style.display = 'none';
+                document.getElementById('desktop').style.display = 'block';
+                document.getElementById('normie-dock').style.display = 'flex';
+                toggleWallpaper(localStorage.getItem('wallpaperMode') || 'normie');
+
+                // Bureau
+                document.getElementById('sm-wallet').innerText = short;
+                document.getElementById('desktop-normie').src = imgUrl;
+
+                window.currentAlphaLevel = Number(getA('Level')) || 0;
+                window.currentAlphaAP    = Number(getA('Action Points')) || 0;
+                updateStatusBits(window.currentAlphaLevel, window.currentAlphaAP);
+
+                if (window._normieGuard) window._normieGuard.stop();
+                if (window._activityWatcher) window._activityWatcher.stop();
+                import('./mempool-monitor.js').then(({ NormieGuard, NormiesActivityWatcher, showMempoolAlert }) => {
+                    const guard = new NormieGuard(address, 'https://api.normies.art');
+                    guard.onAlert(alert => {
+                        if (alert.type === 'NFT_GONE') {
+                            showMempoolAlert({
+                                contract: 'ERC-721C',
+                                method: '!! NORMIE #' + alert.tokenId + ' MISSING FROM WALLET',
+                                from: address,
+                                hash: 'verify on opensea'
+                            });
+                        }
+                    });
+                    guard.start();
+                    window._normieGuard = guard;
+
+                    const watcher = new NormiesActivityWatcher();
+                    watcher.start();
+                    window._activityWatcher = watcher;
+                    window._normiesWatcher  = watcher;
+
+                    // One-time Piper check
+                    if (window.electronAPI?.checkPiper && !sessionStorage.getItem('_piperChecked')) {
+                        sessionStorage.setItem('_piperChecked', '1');
+                        window.electronAPI.checkPiper().then(r => {
+                            if (r !== 'found') notifier.showNotif('TTS', 'PIPER TTS NOT INSTALLED — run: pip install piper-tts', null);
+                        }).catch(() => {});
+                    }
+
+                    watcher.onActivity(async (event) => {
+                        const model = window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b';
+                        const agentName = window.currentAgentPersona?.name ?? `#${window.currentAlphaId}`;
+
+                        let prompt = '';
+                        if (event.type === 'BURN')      prompt = `You are ${agentName}, a Normies agent. ${event.delta} Normie(s) were just burned on Ethereum. React in 1 sentence, in character.`;
+                        if (event.type === 'AGENT')     prompt = `You are ${agentName}. A new Normies agent just awakened on-chain. React in 1 sentence, in character.`;
+                        if (event.type === 'TRANSFORM') prompt = `You are ${agentName}. A Normie canvas was just edited on-chain. React in 1 sentence, in character.`;
+
+                        if (event.type === 'BURN')      notifier.showNotif('ASHFALL', `Burn detected — ${event.delta} token(s) burned`, 'burnwatch');
+                        if (event.type === 'AGENT')     notifier.showNotif('HIVE', `New agent awakened → ${window._normiesWatcher?._snapshot?.count || '?'} / 1500`, 'hive');
+                        if (event.type === 'TRANSFORM') notifier.showNotif('CANVAS', `Canvas edit detected on-chain`, 'pixelforge');
+
+                        if (!prompt) return;
+
+                        try {
+                            const res = await fetch('http://localhost:11434/api/generate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ model, prompt, stream: false, options: { num_predict: 60 } })
+                            });
+                            const data = await res.json();
+                            const msg = data.response?.trim();
+                            if (!msg) return;
+
+                            window.showNormieBubble?.(msg, agentName);
+                            // Piper TTS — speak only if voice enabled
+                            if (window.NORMIE_VOICE_ENABLED && window.electronAPI?.speakNormie) {
+                                window.electronAPI.speakNormie(msg, window.activeAlphaGender).catch(() => {});
+                            }
+                        } catch {}
+                    });
+                });
+
+                fetchAgentsCount().then(count => {
+                    const el = document.getElementById('emergence-counter');
+                    if (el) el.textContent = `[ ${count} / 1500 AGENTS ]`;
+                }).catch(() => {
+                    const el = document.getElementById('emergence-counter');
+                    if (el) el.textContent = `[ ? / 1500 AGENTS ]`;
+                });
+
+                log(`>> IDENTITY MAPPING: ${short}`);
+                log(`>> ALPHA DETECTED: #${mainId} | PRESTIGE: ${alpha.score}`);
+                log(`>> STATUS: LVL ${getA('Level')} | AP: ${getA('Action Points')}`);
+
+
+            } catch (err) {
+                splashStatus.innerText = `ERROR: ${err.message}`;
+            }
+        }
+
+        // ── TOUR → renderer/apps/tour.js ─────────────────────────────────────
+        async function initWC() {
+            if (wcClient) return wcClient;
+            wcClient = await SignClient.init({
+                projectId: WC_PROJECT_ID,
+                metadata: { name: 'NormiesOS', description: 'NormiesOS — Normies NFT Desktop', url: 'https://normies.art', icons: [] }
+            });
+            return wcClient;
+        }
+
+        async function connectViaWC() {
+            const modal     = document.getElementById('wc-modal');
+            const status    = document.getElementById('wc-status');
+            const container = document.getElementById('wc-qr-container');
+
+            modal.classList.add('active');
+            status.innerText = 'INITIALIZING WALLETCONNECT...';
+            container.innerHTML = '';
+
+            try {
+                const client = await initWC();
+                const { uri, approval } = await client.connect({
+                    requiredNamespaces: {
+                        eip155: {
+                            methods: ['eth_sendTransaction', 'personal_sign'],
+                            chains: ['eip155:1'],
+                            events: ['accountsChanged', 'chainChanged']
+                        }
+                    }
+                });
+
+                if (uri) {
+                    console.log('WalletConnect URI:', uri);
+                    container.innerHTML = '';
+                    new QRCode(container, { text: uri, width: 256, height: 256, colorDark: '#48494b', colorLight: '#e3e5e4' });
+                    status.innerText = 'SCAN WITH METAMASK MOBILE';
+                }
+
+                const session = await approval();
+                const address = session.namespaces.eip155.accounts[0].split(':')[2];
+
+                modal.classList.remove('active');
+                const _ollamaP = checkOllamaReady();
+                awaken(address).then(() => {
+                    log('>> BOOTING NEURAL ENGINE...');
+                    _ollamaP.then(ok => {
+                        log(ok ? '>> NEURAL ENGINE ONLINE' : '>> NEURAL ENGINE OFFLINE — LOCAL AI UNAVAILABLE');
+                        if (ok) window._notifier?.showNotif('SYSTEM', 'Neural Engine online — ' + (window.OLLAMA_MODEL || 'mistral:7b'), null);
+                    });
+                    _showFirstBootOverlay();
+                    setTimeout(() => window.startAgentBriefing?.(), 25000);
+                });
+
+            } catch (err) {
+                status.innerText = `ERROR: ${err.message}`;
+            }
+        }
+
+        document.getElementById('wc-close').addEventListener('click', () => {
+            document.getElementById('wc-modal').classList.remove('active');
+        });
+
+        document.getElementById('splash-connect-btn').addEventListener('click', () => {
+            connectViaWC();
+        });
+
+        document.getElementById('dev-skip').addEventListener('click', () => {
+            awaken('0x8a8035f056af830b7205c58c1dc037f826fc2b92').then(() => { _showFirstBootOverlay(); setTimeout(() => window.startAgentBriefing?.(), 25000); });
+        });
+
+        // ── Systray ──────────────────────────────────────────────────
+        // Ollama ping
+        const updateOllama = async () => {
+            try {
+                const r = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(2000) });
+                document.getElementById('systray-ollama').innerText = r.ok ? 'OLLAMA:ON' : 'OLLAMA:OFF';
+            } catch {
+                document.getElementById('systray-ollama').innerText = 'OLLAMA:OFF';
+            }
+        };
+        updateOllama();
+        setInterval(updateOllama, 30000);
+
+
+        // Network status
+        const updateNet = () => {
+            document.getElementById('systray-net').innerText = navigator.onLine ? 'WIFI:OK' : 'WIFI:--';
+        };
+        window.addEventListener('online',  updateNet);
+        window.addEventListener('offline', updateNet);
+        updateNet();
+
+
+        // ── App Directory ─────────────────────────────────────────────
+        const pinnedApps = new Map(); // id → { icon }
+        window.pinnedApps = pinnedApps;
+
+        function savePinnedToStorage() {
+            localStorage.setItem('pinnedApps', JSON.stringify([...pinnedApps.keys()]));
+        }
+
+        function pinAppToDock(app) {
+            if (pinnedApps.has(app.id)) return;
+
+            const icon = document.createElement('button');
+            icon.className = 'dock-pinned-icon';
+            icon.dataset.pinnedId = app.id;
+            icon.title = app.name;
+            icon.innerHTML = `<img src="${app.thumbnailUrl}" alt="${app.name}" onerror="this.src=''">`;
+            icon.addEventListener('click', () => {
+                const body = createNativeWindow(app.name.toUpperCase(), '');
+                const win = body.closest('.os-window');
+                if (win) { win.style.width = '900px'; win.style.height = '600px'; }
+                body.style.padding = '0';
+                body.innerHTML = `<iframe src="${app.url}" style="width:100%;height:100%;border:none;"></iframe>`;
+            });
+            document.getElementById('dock-apps').appendChild(icon);
+            pinnedApps.set(app.id, { icon });
+            savePinnedToStorage();
+            renderStartMenuApps();
+        }
+
+        function unpinAppFromDock(appId) {
+            const entry = pinnedApps.get(appId);
+            if (!entry) return;
+            entry.icon.remove();
+            pinnedApps.delete(appId);
+            savePinnedToStorage();
+            renderStartMenuApps();
+        }
+
+        function loadPinnedFromStorage() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('pinnedApps') || '[]');
+                stored.forEach(id => {
+                    const app = APPS.find(a => a.id === id);
+                    if (app) pinAppToDock(app);
+                });
+            } catch {}
+        }
+
+        // ── Help texts per app (titre fenêtre → explication) ─────────
+        const WINDOW_HELP = {
+            'VAULT':                      'All Normies in your wallet.',
+            'LEDGER':                     'Wallet overview — Normie count, total AP, average level, Prestige Score.',
+            'CONDUCTOR':                  'Multi-wallet and Ethereum delegation manager.',
+            'ASHFALL':                    'Live supply monitor — real-time burns, global deflation.',
+            'PHANTOM':                    'Quickly switch Avatar across all your Normies.',
+            'COMBAT':                     'Battle Rap between AWAKENED agents — on-chain personas vs local Ollama.',
+            'SIMULATOR':                  'Arena 4v4 auto-battler simulation. Test your team synergies.',
+            'CORTEX':                     'Inspect your Alpha\'s on-chain persona and chat via Ollama.',
+            'AWAKENING':                  'ERC-8004 awakening — register your Normie as an autonomous agent.',
+            'HIVE':                       'Multi-agent conversation — 3 random AWAKENED agents debate a topic via Ollama.',
+            'SOLITAIRE':                  'Klondike Solitaire — 7 columns, draw 1. Normies pixel card backs.',
+            'PIXELFORGE':                 '40x40 pixel editor — modify your Normie\'s bitmap using AP.',
+            'SHELL':                      'Custom terminal for NormiesOS. Type /help to see all available commands.',
+            'NEXUS':                      'Directory of 44+ community apps in the Normies ecosystem.',
+            'MAINFRAME':                  'System control panel — hardware, network, Ollama config.',
+            'VINYL':                      'DOPEMIND — NORMIES AWAKENING. 11 tracks. The ecosystem soundtrack.',
+        };
+
+        // ── Native window factory ────────────────────────────────────
+        function createNativeWindow(title, content, nativeKey) {
+            // Focus existing window by data-native key or title
+            const existingSel = nativeKey
+                ? `.os-window[data-native-key="${CSS.escape(nativeKey)}"]`
+                : `.os-window[data-title="${CSS.escape(title)}"]`;
+            const existing = document.querySelector(existingSel);
+            if (existing) {
+                existing.classList.remove('minimized');
+                existing.style.zIndex = ++zIndexCounter;
+                document.querySelectorAll('.taskbar-window-btn').forEach(b => b.classList.remove('active'));
+                const existingTaskBtn = document.querySelector(`.taskbar-window-btn[data-win-title="${CSS.escape(title)}"]`);
+                if (existingTaskBtn) existingTaskBtn.classList.add('active');
+                return existing.querySelector('.native-content');
+            }
+
+            const openCount = document.querySelectorAll('.native-window').length;
+            const x = 60 + (openCount * 25);
+            const y = 60 + (openCount * 25);
+
+            const win = document.createElement('div');
+            win.className = 'os-window';
+            win.dataset.title = title;
+            if (nativeKey) win.dataset.nativeKey = nativeKey;
+            win.style.zIndex = ++zIndexCounter;
+            win.style.top  = y + 'px';
+            win.style.left = x + 'px';
+
+            const body = document.createElement('div');
+            body.className = 'window-content native-content';
+            body.innerHTML = content;
+
+            const helpText = WINDOW_HELP[title] ?? null;
+            win.innerHTML = `
+                <div class="window-header">
+                    <span>${title}</span>
+                    <div class="window-controls">
+                        ${helpText ? `<button class="window-help">?</button>` : ''}
+                        <button class="window-minimize">-</button>
+                        <button class="window-close">X</button>
+                    </div>
+                </div>`;
+            win.appendChild(body);
+            document.getElementById('desktop').appendChild(win);
+
+            const minimize = () => {
+                win.classList.add('minimized');
+                document.querySelectorAll('.taskbar-window-btn').forEach(b => b.classList.remove('active'));
+            };
+
+            const restore = () => {
+                win.classList.remove('minimized');
+                win.style.zIndex = ++zIndexCounter;
+                document.querySelectorAll('.taskbar-window-btn').forEach(b => b.classList.remove('active'));
+                taskBtn.classList.add('active');
+            };
+
+            // ── Taskbar entry ─────────────────────────────────────────
+            const taskBtn = document.createElement('button');
+            taskBtn.className = 'taskbar-window-btn active';
+            taskBtn.title = title;
+            const _ik = window._smLastIcon || null;
+            window._smLastIcon = null;
+            if (_ik && SVG_ICONS[_ik]) {
+                taskBtn.innerHTML = `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:16px;height:16px;fill:currentColor;image-rendering:pixelated;">${SVG_ICONS[_ik]}</svg>`;
+            } else {
+                taskBtn.textContent = title.slice(0, 2).toUpperCase();
+            }
+            taskBtn.dataset.winTitle = title;
+            taskBtn.addEventListener('click', () => {
+                const isMinimized = win.classList.contains('minimized');
+                const isFront = parseInt(win.style.zIndex) === zIndexCounter;
+                if (isMinimized || !isFront) restore();
+                else minimize();
+            });
+            document.getElementById('dock-apps').appendChild(taskBtn);
+
+            win.querySelector('.window-minimize').addEventListener('click', minimize);
+            win.querySelector('.window-close').addEventListener('click', () => {
+                win.remove();
+                taskBtn.remove();
+            });
+            if (helpText) {
+                win.querySelector('.window-help').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const existing = win.querySelector('.help-modal');
+                    if (existing) { existing.remove(); return; }
+                    const modal = document.createElement('div');
+                    modal.className = 'help-modal';
+                    modal.innerHTML = `
+                        <div style="font-weight:bold;margin-bottom:8px;border-bottom:1px solid #48494b;padding-bottom:6px;">${title}</div>
+                        <div style="margin-bottom:12px;line-height:1.5;">${helpText}</div>
+                        <button class="help-modal-close">[ CLOSE ]</button>`;
+                    win.appendChild(modal);
+                    modal.querySelector('.help-modal-close').addEventListener('click', () => modal.remove());
+                });
+            }
+            win.addEventListener('mousedown', () => {
+                win.style.zIndex = ++zIndexCounter;
+                document.querySelectorAll('.taskbar-window-btn').forEach(b => b.classList.remove('active'));
+                taskBtn.classList.add('active');
+            });
+
+            const header = win.querySelector('.window-header');
+            let isDragging = false, offsetX, offsetY;
+            header.addEventListener('mousedown', (e) => { isDragging = true; offsetX = e.clientX - win.offsetLeft; offsetY = e.clientY - win.offsetTop; });
+            document.addEventListener('mousemove', (e) => { if (!isDragging) return; win.style.left = (e.clientX - offsetX) + 'px'; win.style.top = (e.clientY - offsetY) + 'px'; });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+
+            return body;
+        }
+        window.createNativeWindow = createNativeWindow;
+
+        // ── Burn Watch ───────────────────────────────────────────────
+        // ── Mempool Monitor init ─────────────────────────────────────
+        const mempool = new MempoolMonitor(window.MEMPOOL_WS_URL || 'wss://ethereum.publicnode.com');
+        mempool.onActivity(showMempoolAlert);
+        mempool.connect();
+        window._mempool = mempool;
+
+        // ── Mempool Wallpaper ─────────────────────────────────────────
+        const _wpPixels = [];
+        let _wpRaf = null;
+
+        function _wpLoop() {
+            const canvas = document.getElementById('mempool-wallpaper');
+            if (!canvas || canvas.style.display === 'none') { _wpRaf = null; return; }
+            const ctx = canvas.getContext('2d');
+            const now = performance.now();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = _wpPixels.length - 1; i >= 0; i--) {
+                const p = _wpPixels[i];
+                const age = (now - p.born) / 3000;
+                if (age >= 1) { _wpPixels.splice(i, 1); continue; }
+                ctx.fillStyle = `rgba(72,73,75,${(p.alpha * (1 - age)).toFixed(3)})`;
+                ctx.fillRect(p.x, p.y, 2, 2);
+            }
+            _wpRaf = requestAnimationFrame(_wpLoop);
+        }
+
+        function _wpAddPixel() {
+            const canvas = document.getElementById('mempool-wallpaper');
+            if (!canvas || canvas.style.display === 'none') return;
+            _wpPixels.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                alpha: 0.3 + Math.random() * 0.7,
+                born: performance.now(),
+            });
+        }
+
+        function startMempoolWallpaper() {
+            const canvas = document.getElementById('mempool-wallpaper');
+            if (!canvas) return;
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.display = 'block';
+            document.getElementById('desktop-normie').style.display = 'none';
+            if (!_wpRaf) _wpLoop();
+        }
+
+        function stopMempoolWallpaper() {
+            if (_wpRaf) { cancelAnimationFrame(_wpRaf); _wpRaf = null; }
+            _wpPixels.length = 0;
+            const canvas = document.getElementById('mempool-wallpaper');
+            if (canvas) { canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height); canvas.style.display = 'none'; }
+            document.getElementById('desktop-normie').style.display = 'block';
+        }
+
+        // ── Hive Wallpaper ────────────────────────────────────────────
+        let _hwRafId = null;
+        let _hwDots  = [];
+
+        function _hwTidHash(tid) {
+            return String(tid).split('').reduce((h, c) => ((h * 31 + c.charCodeAt(0)) & 0xFFFF), 0);
+        }
+
+        function _hwGenerateSeedDots() {
+            const alphaId = String(window.NormieState?.alpha?.id ?? '6594');
+            const wallet  = String(window.NormieState?.wallet  ?? '0x8a8035f056af830b7205c58c1dc037f826fc2b92');
+            const seedStr = alphaId + wallet.slice(-8);
+            let seed = seedStr.split('').reduce((h, c) => ((h * 31 + c.charCodeAt(0)) | 0), 0);
+            const rand = () => {
+                seed = (seed + 0x6D2B79F5) | 0;
+                let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+            const types = ['human', 'cat', 'alien', 'unknown'];
+            const dots  = [{ tid: alphaId, type: 'human', lvl: 2, isAlpha: true }];
+            for (let i = 0; i < 59; i++) {
+                dots.push({
+                    tid:  String(Math.floor(rand() * 8999) + 1000),
+                    type: types[Math.floor(rand() * 4)],
+                    lvl:  Math.floor(rand() * 5),
+                });
+            }
+            return dots;
+        }
+        // Knuth multiplicative hash — identique à hive.js dotPos
+        function _hwDotPos(dot, cw, ch) {
+            const tid = Number(dot.tid) || _hwTidHash(dot.tid);
+            return {
+                x: ((tid * 2654435761) >>> 0) % (cw - 20) + 10,
+                y: ((tid * 2246822519) >>> 0) % (ch - 20) + 10
+            };
+        }
+
+        // Dots activés par le MempoolMonitor (pulse fort)
+        const _hwActiveTids = new Set();
+        function _hwOnActivity() {
+            if (!_hwDots.length) return;
+            const idx = Math.floor(Math.random() * _hwDots.length);
+            const tid = _hwDots[idx].tid;
+            _hwActiveTids.add(tid);
+            setTimeout(() => _hwActiveTids.delete(tid), 2000);
+        }
+
+        function startHiveWallpaper() {
+            const canvas = document.getElementById('hive-wallpaper');
+            if (!canvas) return;
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.opacity = '1';
+            if (_hwRafId) return;
+            const raw = window.NormieState?.agents ?? [];
+            _hwDots = raw.map(a => ({
+                tid:  String(a.tokenId ?? a.token_id ?? a.id ?? ''),
+                type: String(a.type ?? a.agentType ?? 'unknown').toLowerCase(),
+                lvl:  Number(a.level ?? a.lvl ?? 0)
+            })).filter(d => d.tid);
+            if (!_hwDots.length) _hwDots = _hwGenerateSeedDots();
+            const t0 = performance.now();
+            const frame = now => {
+                const c = document.getElementById('hive-wallpaper');
+                if (!c || c.style.opacity === '0') { _hwRafId = null; return; }
+                if (!_hwDots.length) {
+                    const live = window.NormieState?.agents ?? [];
+                    _hwDots = live.length
+                        ? live.map(a => ({ tid: String(a.tokenId ?? a.token_id ?? a.id ?? ''), type: String(a.type ?? a.agentType ?? 'unknown').toLowerCase(), lvl: Number(a.level ?? a.lvl ?? 0) })).filter(d => d.tid)
+                        : _hwGenerateSeedDots();
+                }
+                const t   = (now - t0) / 1000;
+                const ctx = c.getContext('2d');
+                const cw  = c.width, ch = c.height;
+                ctx.clearRect(0, 0, cw, ch);
+
+                // Pré-calcul positions (identique NETWORK tab)
+                const dotData = _hwDots.map(dot => {
+                    const h       = _hwTidHash(dot.tid);
+                    const pos     = _hwDotPos(dot, cw, ch);
+                    const phase   = ((h & 0xFF) / 255) * Math.PI * 2;
+                    const speed   = 0.3 + ((h >> 8) & 0xFF) / 600;
+                    const isActive = _hwActiveTids.has(dot.tid);
+                    const isAlpha  = !!dot.isAlpha;
+                    const pulse   = Math.abs(Math.sin(t * speed + phase));
+                    return { pos, pulse, lvl: dot.lvl, isAlpha, isActive };
+                });
+
+                // Lignes de connexion — max 45px (identique NETWORK tab)
+                ctx.lineWidth = 1;
+                const maxDist = 45, maxDistSq = maxDist * maxDist;
+                for (let i = 0; i < dotData.length; i++) {
+                    for (let j = i + 1; j < dotData.length; j++) {
+                        const dx = dotData[i].pos.x - dotData[j].pos.x;
+                        const dy = dotData[i].pos.y - dotData[j].pos.y;
+                        const dSq = dx * dx + dy * dy;
+                        if (dSq < maxDistSq) {
+                            const op = 0.15 * (1 - Math.sqrt(dSq) / maxDist);
+                            ctx.strokeStyle = `rgba(72,73,75,${op.toFixed(3)})`;
+                            ctx.beginPath();
+                            ctx.moveTo(dotData[i].pos.x, dotData[i].pos.y);
+                            ctx.lineTo(dotData[j].pos.x, dotData[j].pos.y);
+                            ctx.stroke();
+                        }
+                        if (j - i > 40) break;
+                    }
+                }
+
+                // Nœuds carrés fillRect (identique NETWORK tab)
+                for (const d of dotData) {
+                    const size   = (d.isAlpha || d.isActive) ? 3 : 2;
+                    const opacity = d.isAlpha
+                        ? (0.9 + 0.1 * d.pulse)
+                        : d.isActive
+                            ? (0.75 + 0.25 * d.pulse)
+                            : (0.5 + 0.5 * d.pulse);
+                    ctx.fillStyle = `rgba(72,73,75,${opacity.toFixed(3)})`;
+                    ctx.fillRect(d.pos.x, d.pos.y, size, size);
+                    if (d.isAlpha || d.isActive) {
+                        ctx.strokeStyle = `rgba(72,73,75,${(opacity * 0.5).toFixed(3)})`;
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(d.pos.x - 1, d.pos.y - 1, size + 2, size + 2);
+                    }
+                }
+                _hwRafId = requestAnimationFrame(frame);
+            };
+            _hwRafId = requestAnimationFrame(frame);
+        }
+
+        function stopHiveWallpaper() {
+            if (_hwRafId) { cancelAnimationFrame(_hwRafId); _hwRafId = null; }
+            const canvas = document.getElementById('hive-wallpaper');
+            if (canvas) { canvas.style.opacity = '0'; canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height); }
+        }
+
+        function toggleWallpaper(mode) {
+            localStorage.setItem('wallpaperMode', mode);
+            const normie = document.getElementById('desktop-normie');
+            if (mode === 'hive') {
+                stopMempoolWallpaper();
+                if (normie) { normie.style.display = 'none'; }
+                const bt = document.getElementById('boot-terminal');
+                if (bt) { bt.style.display = 'block'; bt.style.setProperty('z-index', '99999', 'important'); }
+                startHiveWallpaper();
+            } else if (mode === 'mempool') {
+                stopHiveWallpaper();
+                if (normie) normie.style.opacity = '1';
+                startMempoolWallpaper();
+            } else {
+                stopHiveWallpaper();
+                stopMempoolWallpaper();
+                if (normie) { normie.style.display = 'block'; normie.style.opacity = '1'; }
+            }
+        }
+        window.toggleWallpaper = toggleWallpaper;
+
+        mempool.onActivity(_wpAddPixel);
+        mempool.onActivity(_hwOnActivity);
+        window.addEventListener('resize', () => {
+            const mpc = document.getElementById('mempool-wallpaper');
+            if (mpc && mpc.style.display !== 'none') { mpc.width = window.innerWidth; mpc.height = window.innerHeight; }
+            const hwc = document.getElementById('hive-wallpaper');
+            if (hwc && hwc.style.opacity !== '0') { hwc.width = window.innerWidth; hwc.height = window.innerHeight; }
+        });
+        {
+            const initMode = localStorage.getItem('wallpaperMode');
+            if (initMode === 'mempool') startMempoolWallpaper();
+        }
+
+        // ── Start Menu — Pixel Icons & Status Bits ───────────────────
+        const SVG_ICONS = {
+            // VAULT — cadenas
+            inventory: `<rect x="5" y="0" width="6" height="2" fill="currentColor"/><rect x="4" y="2" width="2" height="3" fill="currentColor"/><rect x="10" y="2" width="2" height="3" fill="currentColor"/><rect x="2" y="5" width="12" height="9" fill="currentColor"/>`,
+            // LEDGER — graphe à barres
+            portfolio: `<rect x="1" y="13" width="14" height="1" fill="currentColor"/><rect x="1" y="2" width="1" height="11" fill="currentColor"/><rect x="3" y="8" width="3" height="5" fill="currentColor"/><rect x="7" y="4" width="3" height="9" fill="currentColor"/><rect x="11" y="10" width="3" height="3" fill="currentColor"/>`,
+            // CONDUCTOR — hub circuit
+            walletorch: `<rect x="6" y="6" width="4" height="4" fill="currentColor"/><rect x="1" y="7" width="5" height="2" fill="currentColor"/><rect x="10" y="7" width="5" height="2" fill="currentColor"/><rect x="7" y="1" width="2" height="5" fill="currentColor"/><rect x="7" y="10" width="2" height="5" fill="currentColor"/><rect x="2" y="2" width="2" height="2" fill="currentColor"/><rect x="12" y="2" width="2" height="2" fill="currentColor"/><rect x="2" y="12" width="2" height="2" fill="currentColor"/><rect x="12" y="12" width="2" height="2" fill="currentColor"/>`,
+            // ASHFALL — flamme pixel
+            burnwatch: `<rect x="7" y="0" width="2" height="2" fill="currentColor"/><rect x="5" y="2" width="6" height="2" fill="currentColor"/><rect x="3" y="4" width="10" height="3" fill="currentColor"/><rect x="2" y="7" width="12" height="4" fill="currentColor"/><rect x="3" y="11" width="10" height="2" fill="currentColor"/><rect x="4" y="13" width="8" height="1" fill="currentColor"/>`,
+            // SWITCH — levier toggle
+            alphaswitch: `<rect x="2" y="5" width="12" height="6" fill="currentColor"/><rect x="8" y="4" width="6" height="8" fill="currentColor"/>`,
+            // COMBAT — épées croisées
+            arena: `<rect x="1" y="1" width="2" height="2" fill="currentColor"/><rect x="3" y="3" width="2" height="2" fill="currentColor"/><rect x="5" y="5" width="2" height="2" fill="currentColor"/><rect x="9" y="9" width="2" height="2" fill="currentColor"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/><rect x="13" y="13" width="2" height="2" fill="currentColor"/><rect x="13" y="1" width="2" height="2" fill="currentColor"/><rect x="11" y="3" width="2" height="2" fill="currentColor"/><rect x="9" y="5" width="2" height="2" fill="currentColor"/><rect x="5" y="9" width="2" height="2" fill="currentColor"/><rect x="3" y="11" width="2" height="2" fill="currentColor"/><rect x="1" y="13" width="2" height="2" fill="currentColor"/>`,
+            // CORTEX — puce cerveau
+            braininspector: `<rect x="4" y="4" width="8" height="8" fill="currentColor"/><rect x="1" y="5" width="3" height="2" fill="currentColor"/><rect x="1" y="9" width="3" height="2" fill="currentColor"/><rect x="12" y="5" width="3" height="2" fill="currentColor"/><rect x="12" y="9" width="3" height="2" fill="currentColor"/><rect x="5" y="1" width="2" height="3" fill="currentColor"/><rect x="9" y="1" width="2" height="3" fill="currentColor"/><rect x="5" y="12" width="2" height="3" fill="currentColor"/><rect x="9" y="12" width="2" height="3" fill="currentColor"/>`,
+            // AWAKENING — oeil
+            awakening: `<rect x="5" y="3" width="6" height="2" fill="currentColor"/><rect x="3" y="5" width="2" height="2" fill="currentColor"/><rect x="11" y="5" width="2" height="2" fill="currentColor"/><rect x="2" y="7" width="2" height="2" fill="currentColor"/><rect x="12" y="7" width="2" height="2" fill="currentColor"/><rect x="3" y="9" width="2" height="2" fill="currentColor"/><rect x="11" y="9" width="2" height="2" fill="currentColor"/><rect x="5" y="11" width="6" height="2" fill="currentColor"/><rect x="6" y="6" width="4" height="4" fill="currentColor"/>`,
+            // SOLITAIRE — carte à jouer
+            solitaire: `<rect x="2" y="1" width="12" height="14" fill="none" stroke="currentColor" stroke-width="1"/><text x="4" y="9" font-family="Courier New" font-size="7" fill="currentColor">A</text><text x="4" y="14" font-family="Courier New" font-size="6" fill="currentColor">♠</text>`,
+            // HIVE — 3 noeuds connectés
+            hive: `<rect x="6" y="1" width="4" height="4" fill="currentColor"/><rect x="1" y="11" width="4" height="4" fill="currentColor"/><rect x="11" y="11" width="4" height="4" fill="currentColor"/><rect x="7" y="5" width="2" height="3" fill="currentColor"/><rect x="4" y="9" width="3" height="2" fill="currentColor"/><rect x="9" y="9" width="3" height="2" fill="currentColor"/><rect x="4" y="7" width="2" height="2" fill="currentColor"/><rect x="10" y="7" width="2" height="2" fill="currentColor"/>`,
+            // PIXELWERK — grille pixels
+            pixeleditor: `<rect x="1" y="1" width="3" height="3" fill="currentColor"/><rect x="5" y="1" width="3" height="3" fill="currentColor"/><rect x="9" y="1" width="3" height="3" fill="currentColor"/><rect x="13" y="1" width="2" height="3" fill="currentColor"/><rect x="1" y="5" width="3" height="3" fill="currentColor"/><rect x="9" y="5" width="3" height="3" fill="currentColor"/><rect x="13" y="5" width="2" height="3" fill="currentColor"/><rect x="1" y="9" width="3" height="3" fill="currentColor"/><rect x="5" y="9" width="3" height="3" fill="currentColor"/><rect x="13" y="9" width="2" height="3" fill="currentColor"/><rect x="1" y="13" width="3" height="2" fill="currentColor"/><rect x="5" y="13" width="3" height="2" fill="currentColor"/><rect x="9" y="13" width="3" height="2" fill="currentColor"/>`,
+            // SHELL — curseur prompt
+            terminal: `<rect x="1" y="3" width="2" height="2" fill="currentColor"/><rect x="3" y="5" width="2" height="2" fill="currentColor"/><rect x="5" y="7" width="2" height="2" fill="currentColor"/><rect x="3" y="9" width="2" height="2" fill="currentColor"/><rect x="1" y="11" width="2" height="2" fill="currentColor"/><rect x="8" y="12" width="7" height="2" fill="currentColor"/>`,
+            // NEXUS — noeuds réseau
+            appdirectory: `<rect x="7" y="1" width="3" height="3" fill="currentColor"/><rect x="1" y="12" width="3" height="3" fill="currentColor"/><rect x="12" y="12" width="3" height="3" fill="currentColor"/><rect x="8" y="4" width="1" height="4" fill="currentColor"/><rect x="4" y="8" width="4" height="1" fill="currentColor"/><rect x="3" y="9" width="1" height="3" fill="currentColor"/><rect x="9" y="8" width="3" height="1" fill="currentColor"/><rect x="12" y="9" width="1" height="3" fill="currentColor"/><rect x="4" y="12" width="8" height="1" fill="currentColor"/>`,
+            // COMMAND — engrenage
+            control: `<rect x="6" y="1" width="4" height="2" fill="currentColor"/><rect x="6" y="13" width="4" height="2" fill="currentColor"/><rect x="1" y="6" width="2" height="4" fill="currentColor"/><rect x="13" y="6" width="2" height="4" fill="currentColor"/><rect x="3" y="3" width="2" height="2" fill="currentColor"/><rect x="11" y="3" width="2" height="2" fill="currentColor"/><rect x="3" y="11" width="2" height="2" fill="currentColor"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/><rect x="4" y="4" width="8" height="8" fill="currentColor"/>`,
+            // SIMULATOR — dé probabilité
+            simulator: `<rect x="2" y="2" width="12" height="12" fill="currentColor"/><rect x="4" y="0" width="8" height="2" fill="currentColor"/><rect x="4" y="14" width="8" height="2" fill="currentColor"/><rect x="0" y="4" width="2" height="8" fill="currentColor"/><rect x="14" y="4" width="2" height="8" fill="currentColor"/><rect x="5" y="4" width="2" height="2" fill="white"/><rect x="9" y="4" width="2" height="2" fill="white"/><rect x="7" y="7" width="2" height="2" fill="white"/><rect x="5" y="10" width="2" height="2" fill="white"/><rect x="9" y="10" width="2" height="2" fill="white"/>`,
+            // VINYL — disque vinyl vue de dessus avec trou central
+            vinyl: `<rect x="4" y="0" width="8" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="1" fill="currentColor"/><rect x="1" y="2" width="14" height="1" fill="currentColor"/><rect x="0" y="3" width="16" height="4" fill="currentColor"/><rect x="0" y="7" width="7" height="2" fill="currentColor"/><rect x="9" y="7" width="7" height="2" fill="currentColor"/><rect x="0" y="9" width="16" height="4" fill="currentColor"/><rect x="1" y="13" width="14" height="1" fill="currentColor"/><rect x="2" y="14" width="12" height="1" fill="currentColor"/><rect x="4" y="15" width="8" height="1" fill="currentColor"/>`,
+            // GUARD — bouclier pixel
+            normieguard: `<rect x="4" y="0" width="8" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="1" fill="currentColor"/><rect x="1" y="2" width="14" height="6" fill="currentColor"/><rect x="2" y="8" width="12" height="1" fill="currentColor"/><rect x="3" y="9" width="10" height="1" fill="currentColor"/><rect x="4" y="10" width="8" height="1" fill="currentColor"/><rect x="5" y="11" width="6" height="1" fill="currentColor"/><rect x="6" y="12" width="4" height="1" fill="currentColor"/><rect x="7" y="13" width="2" height="1" fill="currentColor"/>`,
+            // NOTEPAD — page + lines + spiral
+            notepad: `<rect x="2" y="1" width="1" height="13" fill="currentColor"/><rect x="13" y="1" width="1" height="13" fill="currentColor"/><rect x="2" y="13" width="12" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="2" fill="currentColor"/><rect x="5" y="0" width="2" height="2" fill="currentColor"/><rect x="9" y="0" width="2" height="2" fill="currentColor"/><rect x="4" y="5" width="8" height="1" fill="currentColor"/><rect x="4" y="7" width="8" height="1" fill="currentColor"/><rect x="4" y="9" width="8" height="1" fill="currentColor"/><rect x="4" y="11" width="5" height="1" fill="currentColor"/>`,
+            // TRASH — poubelle pixel
+            trash: `<rect x="6" y="0" width="4" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="2" fill="currentColor"/><rect x="3" y="3" width="2" height="10" fill="currentColor"/><rect x="11" y="3" width="2" height="10" fill="currentColor"/><rect x="3" y="13" width="10" height="1" fill="currentColor"/><rect x="6" y="3" width="1" height="9" fill="currentColor"/><rect x="9" y="3" width="1" height="9" fill="currentColor"/>`,
+            // RETRO — cartouche de jeu
+            retro: `<rect x="2" y="0" width="12" height="1" fill="currentColor"/><rect x="1" y="1" width="14" height="1" fill="currentColor"/><rect x="0" y="2" width="16" height="10" fill="currentColor"/><rect x="0" y="12" width="4" height="4" fill="currentColor"/><rect x="12" y="12" width="4" height="4" fill="currentColor"/><rect x="4" y="13" width="8" height="3" fill="currentColor"/><rect x="3" y="4" width="4" height="5" fill="none"/><rect x="3" y="4" width="4" height="1" fill="white"/><rect x="3" y="8" width="4" height="1" fill="white"/><rect x="3" y="4" width="1" height="5" fill="white"/><rect x="6" y="4" width="1" height="5" fill="white"/><rect x="9" y="5" width="4" height="3" fill="white"/>`,
+            // NORMINESWEEPER — bombe pixel art
+            minesweeper: `<rect x="9" y="0" width="1" height="1" fill="currentColor"/><rect x="8" y="1" width="2" height="1" fill="currentColor"/><rect x="8" y="2" width="1" height="2" fill="currentColor"/><rect x="5" y="3" width="6" height="1" fill="currentColor"/><rect x="4" y="4" width="8" height="1" fill="currentColor"/><rect x="3" y="5" width="10" height="6" fill="currentColor"/><rect x="4" y="11" width="8" height="1" fill="currentColor"/><rect x="5" y="12" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="2" height="2" fill="currentColor"/><rect x="13" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="13" width="2" height="2" fill="currentColor"/>`,
+            // DREDGE — folder (file explorer)
+            dredge: `<rect x="1" y="1" width="6" height="2" fill="currentColor"/><rect x="0" y="3" width="16" height="12" fill="currentColor"/>`,
+            // TOOLS — wrench pixel art
+            tools: `<rect x="11" y="0" width="3" height="1" fill="currentColor"/><rect x="12" y="1" width="2" height="1" fill="currentColor"/><rect x="10" y="2" width="4" height="2" fill="currentColor"/><rect x="9" y="4" width="3" height="2" fill="currentColor"/><rect x="7" y="5" width="3" height="2" fill="currentColor"/><rect x="5" y="7" width="3" height="2" fill="currentColor"/><rect x="2" y="9" width="4" height="1" fill="currentColor"/><rect x="1" y="10" width="4" height="2" fill="currentColor"/><rect x="0" y="11" width="2" height="3" fill="currentColor"/><rect x="2" y="12" width="4" height="2" fill="currentColor"/><rect x="4" y="13" width="2" height="2" fill="currentColor"/>`,
+            // NAVIGATOR — globe symétrique 14x14 centré dans 16x16
+            navigateur: `<rect x="5" y="1" width="6" height="1" fill="currentColor"/><rect x="3" y="2" width="2" height="1" fill="currentColor"/><rect x="11" y="2" width="2" height="1" fill="currentColor"/><rect x="2" y="3" width="1" height="2" fill="currentColor"/><rect x="13" y="3" width="1" height="2" fill="currentColor"/><rect x="1" y="5" width="1" height="6" fill="currentColor"/><rect x="14" y="5" width="1" height="6" fill="currentColor"/><rect x="2" y="11" width="1" height="2" fill="currentColor"/><rect x="13" y="11" width="1" height="2" fill="currentColor"/><rect x="3" y="13" width="2" height="1" fill="currentColor"/><rect x="11" y="13" width="2" height="1" fill="currentColor"/><rect x="5" y="14" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="14" height="2" fill="currentColor"/><rect x="7" y="1" width="2" height="14" fill="currentColor"/>`,
+        };
+
+        // ── NATIVE APPS DATA ─────────────────────────────────────────
+        const NATIVE_APPS = [
+            { native:'inventory',     name:'VAULT',      icon:'inventory',     desc:'your collection',         section:'INTEL' },
+            { native:'portfolio',     name:'LEDGER',     icon:'portfolio',     desc:'portfolio value',         section:'INTEL' },
+            { native:'walletorch',    name:'CONDUCTOR',  icon:'walletorch',    desc:'multi-wallet',            section:'INTEL' },
+            { native:'burnwatch',     name:'ASHFALL',    icon:'burnwatch',     desc:'burn tracker',            section:'INTEL' },
+            { native:'alphaswitch',   name:'PHANTOM',    icon:'alphaswitch',   desc:'alpha switch',            section:'INTEL' },
+            { native:'braininspector',name:'CORTEX',     icon:'braininspector',desc:'your agent',              section:'AGENT' },
+            { native:'awakening',     name:'AWAKENING',  icon:'awakening',     desc:'register agent',          section:'AGENT' },
+            { native:'hive',          name:'HIVE',       icon:'hive',          desc:'collective intelligence', section:'AGENT' },
+            { native:'emergence',     name:'EMERGENCE',  icon:'emergence',     desc:'collective pixels',       section:'AGENT', id:'sm-btn-emergence' },
+            { native:'tools',         name:'TOOLS',      icon:'tools',         desc:'ERC-8257 registry',       section:'AGENT' },
+            { native:'arena',         name:'COMBAT',     icon:'arena',         desc:'agent battle rap',        section:'ARENA' },
+            { native:'simulator',     name:'SIMULATOR',  icon:'simulator',     desc:'battle simulator',        section:'ARENA' },
+            { native:'pixeleditor',   name:'PIXELFORGE', icon:'pixeleditor',   desc:'pixel editor',            section:'FORGE' },
+            { native:'terminal',      name:'SHELL',      icon:'terminal',      desc:'terminal',                section:'CORE'  },
+            { native:'appdirectory',  name:'NEXUS',      icon:'appdirectory',  desc:'app directory',           section:'COMMUNITY' },
+            { native:'controlpanel',  name:'MAINFRAME',  icon:'control',       desc:'control panel',           section:'CORE'  },
+            { native:'normieguard',   name:'GUARD',      icon:'normieguard',   desc:'wallet guard',            section:'CORE'  },
+            { native:'navigateur',    name:'NAVIGATOR',  icon:'navigateur',    desc:'web browser',             section:'CORE'  },
+            { native:'notepad',       name:'NOTEPAD',    icon:'notepad',       desc:'notepad',                 section:'CORE'  },
+            { native:'trash',         name:'TRASH',      icon:'trash',         desc:'trash',                   section:'CORE'  },
+            { native:'dredge',        name:'DREDGE',     icon:'dredge',        desc:'file explorer',            section:'CORE'  },
+            { native:'vinyl',         name:'VINYL',      icon:'vinyl',         desc:'music player',            section:'COMMUNITY' },
+            { native:'solitaire',     name:'SOLITAIRE',      icon:'solitaire',     desc:'card game',               section:'GAMES' },
+            { native:'retro',         name:'RETRO',          icon:'retro',         desc:'retro emulator',          section:'GAMES' },
+            { native:'minesweeper',   name:'NORMINESWEEPER', icon:'minesweeper',   desc:'pixel minesweeper',       section:'GAMES' },
+        ];
+
+        // ── COSMIC LAUNCHER ──────────────────────────────────────────
+        let _launcher_activeSection = 'INTEL';
+        let _launcher_dragSrc = null;
+
+        function _launcherMakeItem(app) {
+            const btn = document.createElement('button');
+            btn.className = 'sm-app-btn launcher-app-item';
+            btn.dataset.native  = app.native;
+            btn.dataset.icon    = app.icon;
+            btn.dataset.desc    = app.desc;
+            btn.dataset.section = app.section;
+            if (app.id) btn.id = app.id;
+
+            const iconInner     = SVG_ICONS[app.icon] || '';
+            let agentsCount = '--';
+            if (window._normiesWatcher && window._normiesWatcher._snapshot && window._normiesWatcher._snapshot.count) {
+                agentsCount = window._normiesWatcher._snapshot.count;
+            } else if (window.NormieState && window.NormieState.agents && window.NormieState.agents.length) {
+                agentsCount = window.NormieState.agents.length;
+            }
+            const emergCounter = app.native === 'emergence'
+                ? `<span id="emergence-counter" style="font-size:10px;letter-spacing:0.5px;display:block;">[ ${agentsCount} / 1500 ]</span>`
+                : '';
+
+            btn.innerHTML = `<span class="sm-icon-wrap" style="width:40px;height:40px;"><svg class="sm-icon" style="width:40px;height:40px;" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${iconInner}</svg></span><span class="launcher-app-name">${app.name}</span>${emergCounter}`;
+
+            // Drag to reorder within section
+            btn.draggable = true;
+            btn.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', app.native + '|' + app.name);
+                btn.classList.add('dragging');
+                _launcher_dragSrc = btn;
+            });
+            btn.addEventListener('dragend', () => { btn.classList.remove('dragging'); _launcher_dragSrc = null; });
+            btn.addEventListener('dragover', e => e.preventDefault());
+            btn.addEventListener('drop', e => {
+                e.preventDefault();
+                if (_launcher_dragSrc && _launcher_dragSrc !== btn && !e.dataTransfer.getData('text/plain').startsWith('__desktop__')) {
+                    const grid = document.getElementById('launcher-apps-grid');
+                    const items = [...grid.querySelectorAll('.launcher-app-item')];
+                    const srcIdx = items.indexOf(_launcher_dragSrc);
+                    const dstIdx = items.indexOf(btn);
+                    if (srcIdx < dstIdx) btn.after(_launcher_dragSrc);
+                    else btn.before(_launcher_dragSrc);
+                    _launcherSaveOrder(_launcher_activeSection);
+                }
+            });
+
+            btn.addEventListener('mouseenter', e => _launcherShowTooltip(app.desc, e));
+            btn.addEventListener('mousemove',  e => _launcherMoveTooltip(e));
+            btn.addEventListener('mouseleave', _launcherHideTooltip);
+
+            btn.addEventListener('click', () => {
+                window._smLastIcon = app.icon;
+                window._notifier?._clearBadge(app.native);
+                const fn = APP_LAUNCHERS[app.native];
+                if (fn) { smClose(); fn(); }
+            });
+            return btn;
+        }
+
+        function _launcherSaveOrder(section) {
+            const grid = document.getElementById('launcher-apps-grid');
+            if (!grid) return;
+            const order = [...grid.querySelectorAll('.launcher-app-item')].map(b => b.dataset.native);
+            localStorage.setItem(`normie_launcher_order_${section}`, JSON.stringify(order));
+        }
+
+        function _launcherRenderSection(section, searchTerm) {
+            const grid = document.getElementById('launcher-apps-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            let apps;
+            if (searchTerm) {
+                const t = searchTerm.toLowerCase();
+                apps = NATIVE_APPS.filter(a => a.name.toLowerCase().includes(t) || a.desc.toLowerCase().includes(t));
+            } else {
+                _launcher_activeSection = section;
+                const saved = JSON.parse(localStorage.getItem(`normie_launcher_order_${section}`) || 'null');
+                apps = NATIVE_APPS.filter(a => a.section === section);
+                if (saved) {
+                    apps = [...apps].sort((a, b) => {
+                        const ia = saved.indexOf(a.native), ib = saved.indexOf(b.native);
+                        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+                    });
+                }
+            }
+            apps.forEach(app => grid.appendChild(_launcherMakeItem(app)));
+        }
+
+        function _launcherBuildTabs() {
+            const bar = document.getElementById('launcher-tabs-bar');
+            if (!bar) return;
+            bar.innerHTML = '';
+            const sections = [...new Set(NATIVE_APPS.map(a => a.section))];
+            sections.forEach((sec, i) => {
+                const tab = document.createElement('button');
+                tab.className = 'launcher-tab' + (i === 0 ? ' active' : '');
+                tab.textContent = sec;
+                tab.dataset.section = sec;
+                tab.addEventListener('click', () => {
+                    bar.querySelectorAll('.launcher-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    _launcherRenderSection(sec);
+                });
+                bar.appendChild(tab);
+            });
+        }
+
+        function _launcherShowTooltip(desc, e) {
+            const tt = document.getElementById('launcher-tooltip');
+            if (!tt || !desc) return;
+            tt.textContent = desc;
+            tt.style.display = 'block';
+            _launcherMoveTooltip(e);
+        }
+        function _launcherMoveTooltip(e) {
+            const tt = document.getElementById('launcher-tooltip');
+            if (!tt || tt.style.display === 'none') return;
+            tt.style.left = (e.clientX + 12) + 'px';
+            tt.style.top  = (e.clientY - 32) + 'px';
+        }
+        function _launcherHideTooltip() {
+            const tt = document.getElementById('launcher-tooltip');
+            if (tt) tt.style.display = 'none';
+        }
+
+        function _launcherInit() {
+            _launcherBuildTabs();
+            if (NATIVE_APPS[0]) _launcherRenderSection(NATIVE_APPS[0].section);
+        }
+
+        window.launchNativeApp = native => {
+            const meta = NATIVE_APPS.find(a => a.native === native);
+            if (meta) window._smLastIcon = meta.icon;
+            const fn = APP_LAUNCHERS[native];
+            if (fn) fn();
+        };
+
+        function updateStatusBits(level, ap) {
+            const bits = document.querySelectorAll('#sm-level-bits .sm-bit');
+            const lvl  = Math.min(63, Math.max(0, Number(level) || 0));
+            bits.forEach((b, i) => b.classList.toggle('on', !!((lvl >> (5 - i)) & 1)));
+            const lvlEl = document.getElementById('sm-level-val');
+            if (lvlEl) lvlEl.innerText = level ?? '--';
+
+            const apBar = document.getElementById('sm-ap-bar');
+            if (apBar) {
+                apBar.innerHTML = '';
+                const filled = Math.min(10, Math.round((Number(ap) / 20) * 10));
+                for (let i = 0; i < 10; i++) {
+                    const px = document.createElement('span');
+                    px.className = 'sm-ap-px' + (i < filled ? ' on' : '');
+                    apBar.appendChild(px);
+                }
+            }
+            const apEl = document.getElementById('sm-ap-val');
+            if (apEl) apEl.innerText = ap ?? '--';
+        }
+
+
+        // ── App dispatch table — O(1) lookup, no if-else chain ───────
+        const APP_LAUNCHERS = {
+            burnwatch:     () => openBurnWatch(),
+            inventory:     () => openInventory(),
+            portfolio:     () => openPortfolio(),
+            appdirectory:  () => openAppDirectory(),
+            braininspector:() => window.openBrainInspector?.(),
+            awakening:     () => openAwakening(),
+            hive:          () => window.openHive?.(),
+            solitaire:     () => window.openSolitaire?.(),
+            retro:         () => window.openRetro?.(),
+            minesweeper:   () => window.openMinesweeper?.(),
+            terminal:      () => openTerminal(),
+            pixeleditor:   () => openPixelEditor(),
+            walletorch:    () => openWalletOrchestrator(),
+            arena:         () => window.openCombat?.(),
+            simulator:     () => openArenaSimulator(),
+            alphaswitch:   () => openAlphaSwitch(),
+            controlpanel:  () => openControlPanel(),
+            normieguard:   () => openNormieGuard(),
+            vinyl:         () => openVinyl(),
+            emergence:     () => window.openEmergence?.(),
+            trash:         () => window.openTrash?.(),
+            notepad:       () => openNotepad(),
+            dredge:        () => openDredge(),
+            tools:         () => openTools(),
+            navigateur:    () => window.openNavigateur?.(),
+            leaderboard:   () => createNativeWindow('LEADERBOARD', '<div class="native-loading">>> PHASE 3 — COMING SOON</div>'),
+        };
+
+
+        function getAppType(app) {
+            if (app.url.includes('editor.p5js.org')) return 'p5js';
+            if (app.url.match(/\.pdf$/i))            return 'pdf';
+            return 'remote';
+        }
+
+        function getLocalPath(app) {
+            const type = getAppType(app);
+            if (type === 'p5js') return `./internal-apps/p5-${app.id}.html`;
+            if (type === 'pdf')  return `./internal-apps/drawyournormie.pdf`;
+            return null;
+        }
+
+        function makeAppBtn(app) {
+            const type  = getAppType(app);
+            const local = getLocalPath(app);
+            const badge = type === 'p5js' ? '[P5JS]' : type === 'pdf' ? '[LOCAL]' : '[REMOTE]';
+            const btn = document.createElement('button');
+            btn.className = 'sm-app-btn';
+            btn.innerHTML = `▸ ${app.name.toUpperCase()} <span style="font-size:10px;opacity:0.6;">${badge}</span>`;
+            btn.addEventListener('click', () => {
+                document.getElementById('start-menu').classList.remove('open');
+                const body = createNativeWindow(app.name.toUpperCase(), '');
+                const win = body.closest('.os-window');
+                if (win) { win.style.width = '900px'; win.style.height = '600px'; }
+                body.style.padding = '0';
+                const src = local ?? app.url;
+                body.innerHTML = `<iframe src="${src}" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>`;
+            });
+            return btn;
+        }
+
+        function renderStartMenuApps() {
+            const pinnedList = document.getElementById('sm-pinned-list');
+            const pinnedCat  = document.getElementById('sm-pinned-cat');
+            if (!pinnedList) return;
+
+            pinnedList.innerHTML = '';
+            const pinnedIds = [...pinnedApps.keys()];
+            if (pinnedIds.length > 0) {
+                pinnedCat.style.display = '';
+                pinnedIds.forEach(id => {
+                    const app = APPS.find(a => a.id === id);
+                    if (app) pinnedList.appendChild(makeAppBtn(app));
+                });
+            } else {
+                pinnedCat.style.display = 'none';
+            }
+        }
+
+        _launcherInit();
+        loadPinnedFromStorage();
+        renderStartMenuApps();
+
+        // ── Notification Log ─────────────────────────────────────────
+        const _logBtn   = document.getElementById('notif-log-btn');
+        const _logPanel = document.getElementById('notif-log-panel');
+        const _logBadge = document.getElementById('notif-log-badge');
+
+        function _fmtTime(ts) {
+            const d = new Date(ts);
+            return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ':' + d.getSeconds().toString().padStart(2,'0');
+        }
+
+        function _renderLogPanel() {
+            const entries = window._notifLog || [];
+            if (!entries.length) {
+                _logPanel.innerHTML = '<div style="padding:10px;opacity:0.6;">[ NO NOTIFICATIONS ]</div>';
+                return;
+            }
+            _logPanel.innerHTML = entries.map((e, i) => `
+                <div data-log-idx="${i}" style="padding:6px 10px;border-bottom:1px solid rgba(227,229,228,0.15);cursor:${e.appTarget ? 'pointer' : 'default'};">
+                    <span style="opacity:0.55;">${_fmtTime(e.timestamp)}</span>
+                    <span style="margin-left:6px;font-weight:bold;letter-spacing:1px;">[${e.type}]</span>
+                    <span style="margin-left:4px;">${e.message}</span>
+                    ${e.appTarget ? `<span style="opacity:0.5;margin-left:4px;">&gt;</span>` : ''}
+                </div>`).join('');
+            _logPanel.querySelectorAll('[data-log-idx]').forEach(row => {
+                const idx = Number(row.dataset.logIdx);
+                const entry = entries[idx];
+                if (entry?.appTarget) {
+                    row.addEventListener('click', () => {
+                        const btn = document.querySelector(`.sm-app-btn[data-native="${entry.appTarget}"]`);
+                        if (btn) btn.click();
+                        _logPanel.style.display = 'none';
+                    });
+                }
+            });
+        }
+
+        function _updateLogBadge() {
+            const n = window._notifUnread || 0;
+            _logBadge.style.display = n > 0 ? 'block' : 'none';
+            _logBadge.textContent   = n > 9 ? '9+' : String(n);
+        }
+
+        window._onNewNotif = _updateLogBadge;
+
+        _logBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = _logPanel.style.display !== 'none';
+            if (open) {
+                _logPanel.style.display = 'none';
+            } else {
+                _renderLogPanel();
+                _logPanel.style.display = 'block';
+                window._notifUnread = 0;
+                _updateLogBadge();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!_logPanel.contains(e.target) && e.target !== _logBtn) {
+                _logPanel.style.display = 'none';
+            }
+        });
+
+        // ── Normie Speech Bubble ──────────────────────────────────────
+        window.showSpeechBubble = function(text, agentName) {
+            const bubble = document.getElementById('normie-bubble');
+            if (!bubble) return;
+            clearTimeout(bubble._dismissTimer);
+            bubble.innerHTML = (agentName
+                ? `<div style="font-weight:bold;letter-spacing:1px;margin-bottom:4px;">${agentName.toUpperCase()}</div>` : '')
+                + `<div>${text}</div>`;
+            // Show immediately at opacity 0 so offsetHeight is calculable
+            bubble.style.display    = 'block';
+            bubble.style.opacity    = '0';
+            bubble.style.transition = 'none';
+            requestAnimationFrame(() => {
+                bubble.style.display = 'block'; // force layout before offsetWidth read
+                const normie = document.getElementById('desktop-normie') || document.querySelector('.normie-alpha');
+                if (normie) {
+                    const rect       = normie.getBoundingClientRect();
+                    const trueHeight = bubble.offsetHeight || 52;
+                    if (rect.top === 0 && rect.right === 0) {
+                        bubble.style.top  = '60px';
+                        bubble.style.left = '12px';
+                    } else {
+                        bubble.style.left = (rect.left + rect.width / 2 - (bubble.offsetWidth / 2)) + 'px';
+                        bubble.style.top  = (rect.top - trueHeight - 15) + 'px';
+                    }
+                    bubble.style.setProperty('--arrow-x', '30px');
+                }
+                bubble.style.opacity = '1';
+                bubble._dismissTimer = setTimeout(() => {
+                    bubble.style.transition = 'opacity 500ms';
+                    bubble.style.opacity    = '0';
+                    setTimeout(() => { bubble.style.display = 'none'; }, 520);
+                }, 7000);
+            });
+        };
+        window.showNormieBubble = window.showSpeechBubble; // alias
+
+        // Repositionne la bulle en direct si l'écran change de taille (ex: fermeture DevTools)
+        window.addEventListener('resize', () => {
+            const bubble = document.getElementById('normie-bubble');
+            const normie = document.getElementById('desktop-normie') || document.querySelector('.normie-alpha');
+            if (bubble && bubble.style.display === 'block' && normie) {
+                const rect = normie.getBoundingClientRect();
+                bubble.style.left = (rect.right - 15) + 'px';
+                bubble.style.top  = (rect.top - bubble.offsetHeight - 10) + 'px';
+            }
+        });
+
+        // ── Window factory ───────────────────────────────────────────
+        function createWindow(title, url) {
+            const win = document.createElement('div');
+            win.className = 'os-window';
+            win.style.zIndex = ++zIndexCounter;
+            win.style.top  = (50 + (zIndexCounter - 100) * 20) + 'px';
+            win.style.left = (50 + (zIndexCounter - 100) * 20) + 'px';
+            win.innerHTML = `
+                <div class="window-header">
+                    <span>${title}</span>
+                    <button class="window-close">X</button>
+                </div>
+                <iframe class="window-content" src="${url}"></iframe>`;
+
+            document.getElementById('desktop').appendChild(win);
+            win.querySelector('.window-close').addEventListener('click', () => win.remove());
+            win.addEventListener('mousedown', () => win.style.zIndex = ++zIndexCounter);
+
+            const header = win.querySelector('.window-header');
+            let isDragging = false, offsetX, offsetY;
+            header.addEventListener('mousedown', (e) => { isDragging = true; offsetX = e.clientX - win.offsetLeft; offsetY = e.clientY - win.offsetTop; });
+            document.addEventListener('mousemove', (e) => { if (!isDragging) return; win.style.left = (e.clientX - offsetX) + 'px'; win.style.top = (e.clientY - offsetY) + 'px'; });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+        }
+    </script>
+    <script src="core/state.js"></script>
+    <script src="core/erc8257.js"></script>
+    <script src="apps/hive.js"></script>
+    <script src="apps/combat.js"></script>
+    <script src="apps/cortex.js"></script>
+    <script src="apps/solitaire.js"></script>
+    <script src="apps/retro.js"></script>
+    <script src="apps/games/minesweeper.js"></script>
+    <script src="apps/tour.js"></script>
+    <script src="apps/emergence.js"></script>
+    <script src="apps/trash.js"></script>
+    <script src="apps/notepad.js"></script>
+    <script src="apps/dredge.js"></script>
+    <script src="apps/tools.js"></script>
+    <script src="apps/nexus.js"></script>
+    <script src="apps/controlpanel.js"></script>
+    <script src="apps/guard.js"></script>
+    <script src="apps/vinyl.js"></script>
+    <script src="apps/alphaswitch.js"></script>
+    <script src="apps/burnwatch.js"></script>
+    <script src="apps/inventory.js"></script>
+    <script src="apps/portfolio.js"></script>
+    <script src="apps/terminal.js"></script>
+    <script src="apps/awakening.js"></script>
+    <script src="apps/pixeleditor.js"></script>
+    <script src="apps/walletorch.js"></script>
+    <script src="apps/simulator.js"></script>
+    <script src="apps/briefing.js"></script>
+    <script src="apps/rightclick.js"></script>
+    <script src="apps/navigator.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+In controlpanel.js, refactor the openControlPanel() function to replace the top horizontal tab bar with a vertical left sidebar layout inspired by Pop!_OS (matching image_dfddda.png):
+
+Update the HTML Layout Template:
+Inside the window.createNativeWindow call, replace the horizontal <div class="cp-tabs"> navigation block with a main container layout featuring a fixed left sidebar (.cp-sidebar) and a flexible, scrollable right content panel area (.cp-content-area). Use the following exact markup shell structure to organize the tabs and panels:
+
+HTML
+<div class="cp-container" style="display: flex; height: 100%; width: 100%;">
+    <div class="cp-sidebar" style="width: 150px; border-right: 1px solid #48494b; padding: 10px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+        <button class="cp-tab active" data-panel="cp-hardware" style="text-align: left; background: none; border: none; color: #48494b; font-family: 'Courier New', monospace; cursor: pointer; padding: 4px 0;">[ HARDWARE ]</button>
+        <button class="cp-tab" data-panel="cp-network" style="text-align: left; background: none; border: none; color: #48494b; font-family: 'Courier New', monospace; cursor: pointer; padding: 4px 0;">[ NETWORK ]</button>
+        <button class="cp-tab" data-panel="cp-system" style="text-align: left; background: none; border: none; color: #48494b; font-family: 'Courier New', monospace; cursor: pointer; padding: 4px 0;">[ SYSTEM ]</button>
+        <button class="cp-tab" data-panel="cp-ai" style="text-align: left; background: none; border: none; color: #48494b; font-family: 'Courier New', monospace; cursor: pointer; padding: 4px 0;">[ AI MODEL ]</button>
+        <button class="cp-tab" data-panel="cp-apikeys" style="text-align: left; background: none; border: none; color: #48494b; font-family: 'Courier New', monospace; cursor: pointer; padding: 4px 0;">[ API KEYS ]</button>
+    </div>
+
+    <div class="cp-content-area" style="flex: 1; overflow-y: auto; padding: 0 14px;">
+        </div>
+</div>
+Preserve Logic and Content:
+
+Move all original five content panels (id="cp-hardware", id="cp-network", id="cp-system", id="cp-ai", and id="cp-apikeys") cleanly inside the new .cp-content-area wrapper container.
+
+Do not alter or delete any of the inner slider inputs, button IDs, checkboxes, or target labels.
+
+Style Refactoring for System Options:
+
+Inside the #cp-system panel, adjust the style layout of the individual rows for VOLUME, BRIGHTNESS, WALLPAPER, and TEXT SIZE into standalone, clean-bordered option tile rows that echo the native options list layout from image_dfddda.png.
+
+Retain Scripts and Timers:
+
+Keep all original JavaScript event listeners completely intact, including the .cp-tab click handlers that toggle the .active visibility class, the active hardware monitoring loops (hwTimer, sysTimer), and the API model selectors.
+
+Strictly follow the design system guidelines: avoid solid pure black #000000, using only the native background color #e3e5e4 and font/border tone #48494b
