@@ -385,9 +385,20 @@
             getPiperPath: () => (typeof process !== 'undefined' && process.platform === 'linux')
               ? '/usr/local/bin/piper'
               : 'piper'
-          }
+          },
+          llmBypass: false
         };
         window.NormieStreams  = {};
+
+        // ── Global Ollama network interceptor ─────────────────────────
+        const _origFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const url = args[0];
+            if (window.NormieState?.llmBypass && typeof url === 'string' && url.includes('11434')) {
+                return new Response(JSON.stringify({ response: 'AI disabled (Standby Mode)' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+            }
+            return _origFetch.apply(this, args);
+        };
 
         // ── Text size init ────────────────────────────────────────────
         (function() {
@@ -746,6 +757,19 @@
         updateOllama();
         setInterval(updateOllama, 30000);
 
+        // Bypass toggle
+        const _ollamaEl = document.getElementById('systray-ollama');
+        _ollamaEl.style.cursor = 'pointer';
+        _ollamaEl.addEventListener('click', () => {
+            window.NormieState.llmBypass = !window.NormieState.llmBypass;
+            if (window.NormieState.llmBypass) {
+                _ollamaEl.innerText = 'OLLAMA:OFF';
+                _ollamaEl.style.opacity = '0.45';
+            } else {
+                _ollamaEl.style.opacity = '1';
+                updateOllama();
+            }
+        });
 
         // Network status
         const updateNet = () => {
@@ -862,6 +886,7 @@
                     <span>${title}</span>
                     <div class="window-controls">
                         <button class="window-minimize">-</button>
+                        <button class="window-maximize">▢</button>
                         <button class="window-close">X</button>
                     </div>
                 </div>`;
@@ -901,6 +926,10 @@
             document.getElementById('dock-apps').appendChild(taskBtn);
 
             win.querySelector('.window-minimize').addEventListener('click', minimize);
+            win.querySelector('.window-maximize').addEventListener('click', () => {
+                const isMax = win.classList.toggle('maximized');
+                win.querySelector('.window-maximize').textContent = isMax ? '❐' : '▢';
+            });
             win.querySelector('.window-close').addEventListener('click', () => {
                 win.remove();
                 taskBtn.remove();
@@ -1192,8 +1221,6 @@
             retro: `<rect x="2" y="0" width="12" height="1" fill="currentColor"/><rect x="1" y="1" width="14" height="1" fill="currentColor"/><rect x="0" y="2" width="16" height="10" fill="currentColor"/><rect x="0" y="12" width="4" height="4" fill="currentColor"/><rect x="12" y="12" width="4" height="4" fill="currentColor"/><rect x="4" y="13" width="8" height="3" fill="currentColor"/><rect x="3" y="4" width="4" height="5" fill="none"/><rect x="3" y="4" width="4" height="1" fill="white"/><rect x="3" y="8" width="4" height="1" fill="white"/><rect x="3" y="4" width="1" height="5" fill="white"/><rect x="6" y="4" width="1" height="5" fill="white"/><rect x="9" y="5" width="4" height="3" fill="white"/>`,
             // NORMINESWEEPER — bombe pixel art
             minesweeper: `<rect x="9" y="0" width="1" height="1" fill="currentColor"/><rect x="8" y="1" width="2" height="1" fill="currentColor"/><rect x="8" y="2" width="1" height="2" fill="currentColor"/><rect x="5" y="3" width="6" height="1" fill="currentColor"/><rect x="4" y="4" width="8" height="1" fill="currentColor"/><rect x="3" y="5" width="10" height="6" fill="currentColor"/><rect x="4" y="11" width="8" height="1" fill="currentColor"/><rect x="5" y="12" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="2" height="2" fill="currentColor"/><rect x="13" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="13" width="2" height="2" fill="currentColor"/>`,
-            // DREDGE — folder (file explorer)
-            dredge: `<rect x="1" y="1" width="6" height="2" fill="currentColor"/><rect x="0" y="3" width="16" height="12" fill="currentColor"/>`,
             // TOOLS — wrench pixel art
             tools: `<rect x="11" y="0" width="3" height="1" fill="currentColor"/><rect x="12" y="1" width="2" height="1" fill="currentColor"/><rect x="10" y="2" width="4" height="2" fill="currentColor"/><rect x="9" y="4" width="3" height="2" fill="currentColor"/><rect x="7" y="5" width="3" height="2" fill="currentColor"/><rect x="5" y="7" width="3" height="2" fill="currentColor"/><rect x="2" y="9" width="4" height="1" fill="currentColor"/><rect x="1" y="10" width="4" height="2" fill="currentColor"/><rect x="0" y="11" width="2" height="3" fill="currentColor"/><rect x="2" y="12" width="4" height="2" fill="currentColor"/><rect x="4" y="13" width="2" height="2" fill="currentColor"/>`,
             // NAVIGATOR — globe symétrique 14x14 centré dans 16x16
@@ -1215,7 +1242,7 @@
             { native:'tools',         name:'TOOLS',      icon:'tools',         desc:'ERC-8257 registry',       section:'AGENT' },
             { native:'arena',         name:'COMBAT',     icon:'arena',         desc:'agent battle rap',        section:'ARENA' },
             { native:'simulator',     name:'SIMULATOR',  icon:'simulator',     desc:'battle simulator',        section:'ARENA' },
-            { native:'pixeleditor',   name:'PIXELFORGE', icon:'pixeleditor',   desc:'pixel editor',            section:'FORGE' },
+            { native:'pixeleditor',   name:'PIXELFORGE', icon:'pixeleditor',   desc:'pixel editor',            section:'INTEL' },
             { native:'terminal',      name:'SHELL',      icon:'terminal',      desc:'terminal',                section:'CORE'  },
             { native:'appdirectory',  name:'NEXUS',      icon:'appdirectory',  desc:'app directory',           section:'COMMUNITY' },
             { native:'controlpanel',  name:'MAINFRAME',  icon:'control',       desc:'control panel',           section:'CORE'  },
@@ -1223,7 +1250,6 @@
             { native:'navigateur',    name:'NAVIGATOR',  icon:'navigateur',    desc:'web browser',             section:'CORE'  },
             { native:'notepad',       name:'NOTEPAD',    icon:'notepad',       desc:'notepad',                 section:'CORE'  },
             { native:'trash',         name:'TRASH',      icon:'trash',         desc:'trash',                   section:'CORE'  },
-            { native:'dredge',        name:'DREDGE',     icon:'dredge',        desc:'file explorer',            section:'CORE'  },
             { native:'vinyl',         name:'VINYL',      icon:'vinyl',         desc:'music player',            section:'COMMUNITY' },
             { native:'solitaire',     name:'SOLITAIRE',      icon:'solitaire',     desc:'card game',               section:'GAMES' },
             { native:'retro',         name:'RETRO',          icon:'retro',         desc:'retro emulator',          section:'GAMES' },
@@ -1415,7 +1441,6 @@
             emergence:     () => window.openEmergence?.(),
             trash:         () => window.openTrash?.(),
             notepad:       () => openNotepad(),
-            dredge:        () => openDredge(),
             tools:         () => openTools(),
             navigateur:    () => window.openNavigateur?.(),
             marketpulse:   () => window.openMarketPulse?.(),
@@ -1611,7 +1636,6 @@
     <script src="apps/emergence.js"></script>
     <script src="apps/trash.js"></script>
     <script src="apps/notepad.js"></script>
-    <script src="apps/dredge.js"></script>
     <script src="apps/tools.js"></script>
     <script src="apps/nexus.js"></script>
     <script src="apps/controlpanel.js"></script>
@@ -1623,7 +1647,7 @@
     <script src="apps/portfolio.js"></script>
     <script src="apps/terminal.js"></script>
     <script src="apps/awakening.js"></script>
-    <script src="apps/pixeleditor.js"></script>
+    <script src="apps/intel/pixeleditor.js"></script>
     <script src="apps/walletorch.js"></script>
     <script src="apps/simulator.js"></script>
     <script src="services/MarketPulseService.js"></script>
