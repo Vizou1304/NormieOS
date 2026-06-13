@@ -1,6 +1,6 @@
 async function openEmergence() {
     const API  = window.API;
-    const body = window.createNativeWindow('EMERGENCE', '<div class="native-loading">>> INITIALIZING EMERGENCE...</div>');
+    const body = window.createNativeWindow('PIXEL RITUAL', '<div class="native-loading">>> INITIALIZING EMERGENCE...</div>');
     const win  = body.closest('.os-window');
     if (win) { win.style.width = '500px'; win.style.height = '660px'; }
 
@@ -37,6 +37,8 @@ async function openEmergence() {
     const burnsSet     = (tid, v) => lsSet(`burns_${tid}`, v);
     const canvpxGet    = tid => lsGet(`canvaspx_${tid}`);
     const canvpxSet    = (tid, v) => lsSet(`canvaspx_${tid}`, v);
+    const canvInfoGet  = tid => lsGet(`canvinfo_${tid}`);
+    const canvInfoSet  = (tid, v) => lsSet(`canvinfo_${tid}`, v);
 
     // ── Zone mask: 1600-element Uint8Array, 1 = contribute ────────
     const buildZoneMask = rawType => {
@@ -62,8 +64,8 @@ async function openEmergence() {
     // ── Layout ────────────────────────────────────────────────────
     body.innerHTML = `
         <div style="padding:10px 14px;border-bottom:2px solid #48494b;background:#48494b;color:#e3e5e4;flex-shrink:0;">
-            <div style="font-weight:bold;letter-spacing:2px;font-size:12px;">EMERGENCE</div>
-            <div style="font-size:var(--font-size-log);opacity:0.7;letter-spacing:1.5px;margin-bottom:8px;">COLLECTIVE PIXEL OUTPUT #001</div>
+            <div style="font-weight:bold;letter-spacing:2px;font-size:12px;">PIXEL RITUAL</div>
+            <div style="font-size:var(--font-size-log);opacity:0.7;letter-spacing:1.5px;margin-bottom:8px;">>> 1500 AGENTS ENTWINED — ONE CANVAS BORN</div>
         </div>
         <div style="padding:8px 14px;border-bottom:1px solid #48494b;flex-shrink:0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
@@ -85,12 +87,16 @@ async function openEmergence() {
             <div style="position:relative;display:inline-block;flex-shrink:0;">
                 <canvas id="em-canvas" width="400" height="400"
                     style="border:2px solid #48494b;image-rendering:pixelated;display:block;"></canvas>
-                <div id="em-scan-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(72,73,75,0.06) 2px,rgba(72,73,75,0.06) 4px);pointer-events:none;z-index:2;"></div>
+                <div id="em-scan-overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(72,73,75,0.12) 2px,rgba(72,73,75,0.12) 4px);pointer-events:none;z-index:2;"></div>
             </div>
             <div style="margin-top:7px;font-size:10px;opacity:0.65;letter-spacing:0.5px;text-align:center;">
                 HUMAN — center &nbsp;|&nbsp; CAT — top &nbsp;|&nbsp; ALIEN — edges &nbsp;|&nbsp; AGENT — core
             </div>
             <div id="em-contributors" style="margin-top:8px;font-size:10px;opacity:0.7;text-align:center;max-width:460px;padding:0 14px;line-height:1.6;"></div>
+        </div>
+        <div style="display:flex;gap:6px;padding:8px 14px;border-top:1px solid #48494b;flex-shrink:0;background:#e3e5e4;">
+            <button id="em-save" style="flex:1;border:2px solid #48494b;padding:5px 0;font-family:'Courier New',monospace;font-size:10px;background:transparent;color:#48494b;cursor:pointer;letter-spacing:1px;transition:none;">[ SAVE EMERGENCE ]</button>
+            <button id="em-push" style="flex:1;border:2px solid #48494b;padding:5px 0;font-family:'Courier New',monospace;font-size:10px;background:transparent;color:#48494b;cursor:pointer;letter-spacing:1px;transition:none;">[ PUSH TO CANVAS ]</button>
         </div>`;
 
     const counterEl      = body.querySelector('#em-counter');
@@ -206,14 +212,20 @@ async function openEmergence() {
     };
 
     // ── Main generation pipeline ──────────────────────────────────
+    let _lastResult       = null;
+    let _lastAgents       = [];
+    let _lastTotalWeight  = 0;
+
     let running = false;
     let abortCtrl = null;
 
     const generate = async () => {
+        const sessionSalt = Date.now();
         // Engine state: DNA accumulator + GoL double buffer
         const W        = 40;
         const CELLS    = W * W;
         const seedGrid = new Float32Array(CELLS);   // weighted agent DNA
+        const burnGrid = new Float32Array(CELLS);   // burn resonance per cell
         let   liveGrid = new Uint8Array(CELLS);     // current generation
         let   nextGrid = new Uint8Array(CELLS);     // swap buffer
         if (abortCtrl) abortCtrl.abort();
@@ -231,21 +243,52 @@ async function openEmergence() {
         contributorsEl.textContent = '';
 
         try {
-            // 1. Agents list
-            statusEl.textContent = '>> FETCHING AGENTS...';
-            let allRaw = window.NormieState?.agents ?? window.NormieCache.get('agents');
-            if (!allRaw) {
-                const r = await fetch(`${API}/agents/list?sort=newest&limit=100`, { signal }).catch(() => null);
-                if (!r?.ok) throw new Error('agents/list unreachable');
-                const d = await r.json();
-                allRaw = Array.isArray(d) ? d : (d.agents ?? d.items ?? d.data ?? d.tokens ?? []);
-                window.NormieCache.set('agents', allRaw, window.TTL.PERSONA);
-                if (window.NormieState) window.NormieState.agents = allRaw;
+            const displayGrid = new Uint8Array(CELLS); // tracks canvas state; reset on each generate()
+            // 1. Agents pool — paginate up to 500 agents, cached 1h as 'agents_pool'
+            statusEl.textContent = '>> FETCHING AGENT POOL...';
+            let allRaw = window.NormieCache.get('agents_pool');
+            if (!allRaw || allRaw.length < 200) {
+                allRaw = [];
+                let cursor = null;
+                for (let page = 0; page < 5 && allRaw.length < 500; page++) {
+                    const url = cursor
+                        ? `${API}/agents/list?sort=newest&limit=100&cursor=${encodeURIComponent(cursor)}`
+                        : `${API}/agents/list?sort=newest&limit=100`;
+                    const r = await fetch(url, { signal }).catch(() => null);
+                    if (!r?.ok) break;
+                    const d = await r.json().catch(() => null);
+                    if (!d) break;
+                    const items = Array.isArray(d) ? d : (d.agents ?? d.items ?? d.data ?? d.tokens ?? []);
+                    allRaw.push(...items);
+                    cursor = d.cursor ?? d.nextCursor ?? d.next ?? null;
+                    if (!cursor || items.length < 100) break;
+                }
+                if (!allRaw.length) throw new Error('no agents found');
+                window.NormieCache.set('agents_pool', allRaw, window.TTL.PERSONA);
             }
             if (!allRaw?.length) throw new Error('no agents found');
 
-            const selected = [...allRaw].sort(() => Math.random() - 0.5).slice(0, 50);
-            const TARGET   = selected.length;
+            // Weighted-random sampling seeded by sessionSalt
+            // pick-probability ∝ 1/(tokenId+1) — OG agents favoured, different subset each run
+            const _sampleRng = createPRNG(hashStr('sample-' + sessionSalt));
+            const _pool = allRaw.map(a => ({
+                agent: a,
+                w: 1 / (Number(a.tokenId ?? a.token_id ?? a.id ?? 1000) + 1)
+            }));
+            const selected = [];
+            const _remaining = [..._pool];
+            while (selected.length < Math.min(80, _remaining.length)) {
+                const _tw = _remaining.reduce((s, p) => s + p.w, 0);
+                let _r = _sampleRng() * _tw;
+                let _idx = _remaining.length - 1;
+                for (let _k = 0; _k < _remaining.length; _k++) {
+                    _r -= _remaining[_k].w;
+                    if (_r <= 0) { _idx = _k; break; }
+                }
+                selected.push(_remaining[_idx].agent);
+                _remaining.splice(_idx, 1);
+            }
+            const TARGET = selected.length;
 
             // 2. Deliberation — 1 representative per type consults Ollama
             statusEl.textContent = '>> AGENT DELIBERATION...';
@@ -336,212 +379,165 @@ async function openEmergence() {
                 }
             }
 
-            // 3. Per-agent: pixels + identity (type) + burn score + canvas diff
-            // Each fetch miss costs 100ms — cache hits are instant
+            // ══ CONSENSUS ACCUMULATION ENGINE ═══════════════════════════
+
+            // ── Consensus accumulation ──────────────────────────────────
+            const accGrid        = new Float32Array(CELLS);
+            const _glyphCenters  = new Set();
+            const jitterRng = createPRNG(hashStr('jitter-' + sessionSalt));
             let totalWeight = 0;
-            const agents = []; // { name, pixels, type, weight, canvasPixels }
+            const agents    = [];
+
+            statusEl.textContent = `>> USING ${TARGET} AWAKENED AGENTS`;
 
             for (let i = 0; i < TARGET; i++) {
                 if (signal.aborted || !body.closest('.os-window')) break;
                 const a   = selected[i];
                 const tid = String(a.tokenId ?? a.token_id ?? a.id ?? '');
-                const statusBase = `>> FORGING PIXELS... ${i + 1}/${TARGET}`;
-                statusEl.textContent = statusBase;
+                statusEl.textContent = `>> INSCRIBING GLYPH... ${i + 1}/${TARGET}`;
                 setProgress(i + 1, TARGET);
 
-                // 2a. Pixels
-                let pixels = pixelsGet(tid);
-                const wasCached = pixels !== null; // skip burn fetch if this agent was cached
-                if (!pixels) {
-                    const txt = await fetchText(
-                        `${API}/normie/${tid}/pixels`,
-                        null,
-                        null
-                    );
-                    let raw = txt;
-                    try { const obj = JSON.parse(txt); raw = obj?.pixels ?? obj?.data ?? txt; } catch {}
-                    raw = String(raw ?? '').replace(/[^01]/g, '');
-                    if (raw.length === 1600) {
-                        pixels = raw;
-                        pixelsSet(tid, pixels);
-                    } else {
-                        await delay(); // already consumed by fetchText but guard
-                    }
-                }
-                if (!pixels?.length) continue; // skip invalid
-
-                // 2b. Identity → type
                 let identity = identityGet(tid);
-                if (!identity) {
-                    identity = await fetchJSON(
-                        `${API}/agents/identity/${tid}`,
-                        null,
-                        v => identitySet(tid, v)
-                    );
-                }
+                if (!identity) identity = await fetchJSON(`${API}/agents/identity/${tid}`, null, v => identitySet(tid, v));
                 const type = String(identity?.type ?? identity?.agentType ?? 'unknown').toLowerCase();
                 const name = identity?.name ?? a.name ?? `#${tid}`;
 
-                // 2c. Burn score → weight (skip fetch if pixels were already cached)
                 let burnCount = burnsGet(tid);
-                if (burnCount === null && !wasCached) {
-                    const burnData = await fetchJSON(
-                        `${API}/history/burns/receiver/${tid}`,
-                        null,
-                        null
-                    );
-                    burnCount = Number(
-                        burnData?.count ?? burnData?.total ??
-                        (Array.isArray(burnData) ? burnData.length : 0)
-                    ) || 0;
+                if (burnCount === null) {
+                    const burnData = await fetchJSON(`${API}/history/burns/receiver/${tid}`, null, null);
+                    burnCount = Number(burnData?.count ?? burnData?.total ?? (Array.isArray(burnData) ? burnData.length : 0)) || 0;
                     burnsSet(tid, burnCount);
                 }
-                // weight = 1 + min(burnCount, 5) * 0.2
-                const weight = 1 + Math.min(Number(burnCount) || 0, 5) * 0.2;
+                const burnRaw   = Math.min(Number(burnCount) || 0, 5);
+                const burnBonus = burnRaw > 0 ? Math.pow(1.25, burnRaw) - 1 : 0;
+                const isCustomized = (window.NormieState?.alpha?.id === tid && window.NormieState?.alpha?.canvas?.customized === true) || identity?.customized === true;
 
-                // 2d. Canvas diff — NormieState first, then identity
-                let canvasPixels = null;
-                const isCustomized =
-                    (window.NormieState?.alpha?.id === tid && window.NormieState?.alpha?.canvas?.customized === true) ||
-                    identity?.customized === true;
-
-                if (isCustomized) {
-                    let cvpx = canvpxGet(tid);
-                    if (!cvpx) {
-                        const txt = await fetchText(
-                            `${API}/normie/${tid}/canvas/pixels`,
-                            null,
-                            null
-                        );
-                        let raw = txt;
-                        try { const obj = JSON.parse(txt); raw = obj?.pixels ?? obj?.data ?? txt; } catch {}
-                        raw = String(raw ?? '').replace(/[^01]/g, '');
-                        if (raw.length === 1600) {
-                            cvpx = raw;
-                            canvpxSet(tid, cvpx);
-                        }
-                    }
-                    if (cvpx?.length === 1600) canvasPixels = cvpx;
+                let prestige = 0, level = 1;
+                const cachedMeta = window.NormieState?.allMetadata?.[String(tid)];
+                if (cachedMeta?.attributes) {
+                    prestige = calcPrestige(cachedMeta.attributes);
+                    level    = Number(cachedMeta.attributes.find(at => String(at.trait_type ?? '').toLowerCase() === 'level')?.value) || 1;
+                } else {
+                    let ci = canvInfoGet(tid);
+                    if (!ci) ci = await fetchJSON(`${API}/normie/${tid}/canvas/info`, null, v => canvInfoSet(tid, v));
+                    level = Number(ci?.level ?? ci?.Level ?? 1);
                 }
 
-                const agentData = typeBehaviorMap.get(type) ?? {};
+                const jitter = 0.85 + jitterRng() * 0.3;
+                const weight = (1 + burnBonus + (prestige / 200) + (isCustomized ? 0.5 : 0)) * jitter;
                 totalWeight += weight;
 
-                const { brush_radius = 3, chaos_factor = 0.5 } = agentData;
-                const aRng = createPRNG(hashStr(`${tid}-${i}`));
+                // ── ON-CHAIN GLYPH STAMP ─────────────────────────────────
+                // Two independent Knuth hashes — decorrelated so cx and cy spread uniformly
+                const _h = hashStr(tid + '-' + sessionSalt);
+                const cx = ((_h * 2654435761) >>> 0) % 40;
+                const cy = ((_h * 2246822519) >>> 0) % 40;
+                _glyphCenters.add(`${cx},${cy}`);
+                const radius    = Math.max(2, Math.min(3, 2 + Math.floor(level / 3)));
+                const agentPrng = createPRNG(hashStr(tid + '-' + sessionSalt));
 
-                // ── DNA SEEDING: stamp full 40×40 pixel string onto grid ──
-                if (pixels?.length === CELLS) {
-                    for (let idx = 0; idx < CELLS; idx++) {
-                        if (pixels[idx] === '1') {
-                            seedGrid[idx] += weight * (aRng() > chaos_factor * 0.45 ? 1.0 : 0.25);
+                if (type.includes('human')) {
+                    // Filled disc with organic edge falloff
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        for (let dx = -radius; dx <= radius; dx++) {
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist > radius) continue;
+                            const nx = cx + dx, ny = cy + dy;
+                            if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
+                            accGrid[ny * W + nx] += weight * (0.7 + agentPrng() * 0.3) * (1 - dist / (radius + 1));
                         }
                     }
+                } else if (type.includes('cat')) {
+                    // Ring: only cells at the edge band
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        for (let dx = -radius; dx <= radius; dx++) {
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist > radius || dist < radius - 1.5) continue;
+                            const nx = cx + dx, ny = cy + dy;
+                            if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
+                            accGrid[ny * W + nx] += weight * (0.75 + agentPrng() * 0.25);
+                        }
+                    }
+                } else if (type.includes('alien')) {
+                    // Scatter cluster: random points within radius
+                    const pts = Math.max(6, Math.floor(radius * radius * 2));
+                    for (let p = 0; p < pts; p++) {
+                        const angle = agentPrng() * Math.PI * 2;
+                        const r2    = agentPrng() * radius;
+                        const nx = Math.round(cx + Math.cos(angle) * r2);
+                        const ny = Math.round(cy + Math.sin(angle) * r2);
+                        if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
+                        accGrid[ny * W + nx] += weight * (0.6 + agentPrng() * 0.4);
+                    }
                 } else {
-                    // Fallback: scatter uniformly across full canvas
-                    const aRng2 = createPRNG(hashStr(`${tid}-${i}-fb`));
-                    for (let idx = 0; idx < CELLS; idx++) {
-                        if (aRng2() > 0.75) seedGrid[idx] += weight * 0.5;
+                    // agent / unknown: cross/plus with falloff
+                    for (let d = -radius; d <= radius; d++) {
+                        const falloff = 1 - Math.abs(d) / (radius + 1);
+                        const wx = cx + d; if (wx >= 0 && wx < W) accGrid[cy * W + wx] += weight * (0.7 + agentPrng() * 0.3) * falloff;
+                        const wy = cy + d; if (wy >= 0 && wy < W) accGrid[wy * W + cx] += weight * (0.7 + agentPrng() * 0.3) * falloff;
                     }
                 }
 
-                // Live preview: threshold accumulator
-                let _maxS = 0;
-                for (let j = 0; j < CELLS; j++) if (seedGrid[j] > _maxS) _maxS = seedGrid[j];
-                if (_maxS > 0) {
-                    const _t = _maxS * 0.28;
-                    const _p = new Int32Array(CELLS);
-                    for (let j = 0; j < CELLS; j++) _p[j] = seedGrid[j] >= _t ? 1 : 0;
-                    renderCanvas(_p);
-                }
-                await new Promise(r => setTimeout(r, 100));
+                agents.push({ name, type, weight });
+                counterEl.textContent = `${agents.length} GLYPHS INSCRIBED`;
 
-                agents.push({ name, pixels, type, weight, canvasPixels, behavior: agentData });
+                // Progressive heat preview every 10 agents
+                if (agents.length % 10 === 0 || i === TARGET - 1) {
+                    let maxA = 0;
+                    for (let j = 0; j < CELLS; j++) if (accGrid[j] > maxA) maxA = accGrid[j];
+                    if (maxA > 0) {
+                        for (let j = 0; j < CELLS; j++) {
+                            const on = accGrid[j] / maxA >= 0.5;
+                            ctx.fillStyle = on ? '#48494b' : '#e3e5e4';
+                            ctx.fillRect((j % W) * 10, ((j / W) | 0) * 10, 10, 10);
+                            displayGrid[j] = on ? 1 : 0;
+                        }
+                    }
+                    await new Promise(r => setTimeout(r, 60));
+                }
             }
 
             if (!agents.length) throw new Error('no valid pixel data');
+            console.log(`[PIXEL RITUAL] distinct glyph centers: ${_glyphCenters.size} / ${agents.length} agents`);
 
-            // ══ PHASE 2: ORGANIC EVOLUTION ══════════════════════════════
-
-            // 2a. Seed live grid from DNA accumulator
-            statusEl.textContent = '>> SEEDING LIFEFORMS...';
-            let maxSeed = 0;
-            for (let i = 0; i < CELLS; i++) if (seedGrid[i] > maxSeed) maxSeed = seedGrid[i];
-            const seedT = maxSeed * 0.28;
-            for (let i = 0; i < CELLS; i++) liveGrid[i] = seedGrid[i] >= seedT ? 1 : 0;
-            renderCanvas(liveGrid);
-            await new Promise(r => setTimeout(r, 180));
-
-            // Normalized seed strength 0→1 per cell (heavier agents = stronger cells)
-            const nSeed = new Float32Array(CELLS);
-            if (maxSeed > 0) for (let i = 0; i < CELLS; i++) nSeed[i] = seedGrid[i] / maxSeed;
-
-            // 2b. GROWTH: 12 generations of weighted Game of Life
-            // Stronger cells (high original seed weight) survive with fewer neighbors.
-            // Chaotic regions die faster. Result: organic filaments emerge from dense seeds.
-            statusEl.textContent = '>> GROWING...';
-            for (let gen = 0; gen < 12; gen++) {
-                if (signal.aborted) break;
-                nextGrid.fill(0);
-                for (let i = 0; i < CELLS; i++) {
-                    const x = i % W, y = (i / W) | 0;
-                    let n = 0;
-                    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-                        if (!dx && !dy) continue;
-                        const nx = x + dx, ny = y + dy;
-                        if (nx >= 0 && nx < W && ny >= 0 && ny < W) n += liveGrid[ny * W + nx];
-                    }
-                    const s = nSeed[i];
-                    if (liveGrid[i]) {
-                        const minN = s > 0.65 ? 1 : 2;           // strong cell: survive even alone
-                        const maxN = s > 0.65 ? 6 : s > 0.35 ? 5 : 4; // weak cell: overcrowding kills
-                        nextGrid[i] = (n >= minN && n <= maxN) ? 1 : 0;
-                    } else {
-                        // Born: standard 3-neighbor rule, or 2 neighbors if strong seed beneath
-                        nextGrid[i] = (n === 3 || (n === 2 && s > 0.55)) ? 1 : 0;
-                    }
-                }
-                [liveGrid, nextGrid] = [nextGrid, liveGrid];
-                renderCanvas(liveGrid);
-                await new Promise(r => setTimeout(r, 100));
+            // ── BASELINE SUBTRACTION — surface group-distinctive pixels ─
+            // freq[i] = fraction of total weight active at this pixel
+            for (let i = 0; i < CELLS; i++) {
+                if (!accGrid[i]) continue;
+                const freq = accGrid[i] / totalWeight;
+                if (freq > 0.85)        accGrid[i] *= 0.35; // dampen universal silhouette
+                else if (freq >= 0.25)  accGrid[i] *= 1.4;  // boost group-distinctive pixels
+                // freq < 0.25: leave unchanged (low-frequency, let threshold decide)
             }
 
-            // 2c. EROSION: 3 passes — strip isolated noise, sharpen filaments
+            // ── NORMALIZE + THRESHOLD ───────────────────────────────────
             statusEl.textContent = '>> CRYSTALLIZING...';
-            for (let pass = 0; pass < 3; pass++) {
-                if (signal.aborted) break;
-                nextGrid.fill(0);
-                for (let i = 0; i < CELLS; i++) {
-                    if (!liveGrid[i]) continue;
-                    const x = i % W, y = (i / W) | 0;
-                    let n = 0;
-                    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-                        if (!dx && !dy) continue;
-                        const nx = x + dx, ny = y + dy;
-                        if (nx >= 0 && nx < W && ny >= 0 && ny < W) n += liveGrid[ny * W + nx];
-                    }
-                    nextGrid[i] = n >= 2 ? 1 : 0;
-                }
-                [liveGrid, nextGrid] = [nextGrid, liveGrid];
-                renderCanvas(liveGrid);
-                await new Promise(r => setTimeout(r, 110));
-            }
-
+            let maxAcc = 0;
+            for (let i = 0; i < CELLS; i++) if (accGrid[i] > maxAcc) maxAcc = accGrid[i];
+            const threshold = maxAcc * 0.35;
             const result = new Int32Array(CELLS);
-            for (let i = 0; i < CELLS; i++) result[i] = liveGrid[i];
+            for (let i = 0; i < CELLS; i++) result[i] = accGrid[i] >= threshold ? 1 : 0;
 
-            // ══ PHASE 3: CANVAS XOR — customized agent pixels overlay ═══
-            let canvasLayerCount = 0;
-            for (const { canvasPixels } of agents) {
-                if (!canvasPixels) continue;
-                canvasLayerCount++;
-                for (let i = 0; i < CELLS; i++) {
-                    result[i] ^= parseInt(canvasPixels[i]);
+            // ── SINGLE MAJORITY FILTER (lone-pixel noise removal) ───────
+            for (let i = 0; i < CELLS; i++) {
+                if (!result[i]) continue;
+                const x = i % W, y = (i / W) | 0;
+                let n = 0;
+                for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                    if (!dx && !dy) continue;
+                    const nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && nx < W && ny >= 0 && ny < W) n += result[ny * W + nx];
                 }
+                if (n < 2) result[i] = 0;
             }
 
-            // 5. Render
+            let canvasLayerCount = 0; // kept for export string compat
+
+            // 5. Render + store for export
             renderCanvas(result);
+            _lastResult      = result;
+            _lastAgents      = [...agents];
+            _lastTotalWeight = Math.round(totalWeight * 100) / 100;
             const contributed = agents.length;
             counterEl.textContent = `${contributed} AGENTS CONTRIBUTED${canvasLayerCount ? ` (+${canvasLayerCount} CANVAS DIFF)` : ''}`;
             statusEl.textContent  = '>> EMERGENCE COMPLETE';
@@ -562,7 +558,49 @@ async function openEmergence() {
 
     generateBtn.addEventListener('click', generate);
 
-    generate();
+    // ── Export button hover inversions ────────────────────────
+    [body.querySelector('#em-save'), body.querySelector('#em-push')].forEach(btn => {
+        if (!btn) return;
+        btn.addEventListener('mouseenter', () => { btn.style.background = '#48494b'; btn.style.color = '#e3e5e4'; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = 'transparent'; btn.style.color = '#48494b'; });
+    });
+
+    // ── [ SAVE EMERGENCE ] ────────────────────────────────────
+    body.querySelector('#em-save')?.addEventListener('click', () => {
+        if (!_lastResult) { statusEl.textContent = '>> GENERATE FIRST'; return; }
+        const meta = {
+            name: 'PIXEL RITUAL #001',
+            generation: _lastAgents.length,
+            algorithm: 'DNA-Seed + GoL-Evolution + Erosion + Veil(0.05)',
+            totalWeight: _lastTotalWeight,
+            contributors: _lastAgents.map(a => a.name)
+        };
+        const jsonBlob = new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json' });
+        const jsonUrl  = URL.createObjectURL(jsonBlob);
+        const jsonA    = document.createElement('a');
+        jsonA.href = jsonUrl; jsonA.download = 'pixel-ritual-metadata.json'; jsonA.click();
+        URL.revokeObjectURL(jsonUrl);
+
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = 400; exportCanvas.height = 400;
+        const ectx = exportCanvas.getContext('2d');
+        ectx.imageSmoothingEnabled = false;
+        for (let i = 0; i < 1600; i++) {
+            ectx.fillStyle = _lastResult[i] ? '#48494b' : '#e3e5e4';
+            ectx.fillRect((i % 40) * 10, ((i / 40) | 0) * 10, 10, 10);
+        }
+        exportCanvas.toBlob(blob => {
+            const pngUrl = URL.createObjectURL(blob);
+            const pngA   = document.createElement('a');
+            pngA.href = pngUrl; pngA.download = 'pixel-ritual.png'; pngA.click();
+            URL.revokeObjectURL(pngUrl);
+        });
+    });
+
+    // ── [ PUSH TO CANVAS ] ────────────────────────────────────
+    body.querySelector('#em-push')?.addEventListener('click', () => {
+        window._notifier?.showNotif('PIXEL RITUAL', '[ PUSH TO CANVAS ] — ERC-8257 pending', 'emergence');
+    });
 
     // ── Live agent count polling ──────────────────────────────────
     let lastCount = 0;
@@ -578,7 +616,6 @@ async function openEmergence() {
             if (count > 0 && !running) setProgress(count);
             if (count > lastCount && lastCount > 0) {
                 window._notifier?.showNotif('EMERGENCE', 'New agent — ' + count + '/1500', 'emergence');
-                generate();
             }
             if (count > 0) lastCount = count;
         } catch {}

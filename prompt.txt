@@ -1,11 +1,18 @@
-Fix the data mapping bugs in renderer/services/MarketPulseService.js and renderer/apps/market.js. The UI looks perfect, but several stats are missing or incorrect:
+Read renderer/apps/emergence.js generate(). The diagnostic confirmed: accumulating raw avatar bitmaps always yields the average Normie face. Replace WHAT is accumulated. Keep the stochastic sampling, distinctiveness, threshold, cleanup, AbortController, progressive paint, and 1-bit render.
 
-1. Fix LISTED %: OpenSea v2 stats JSON doesn't have a flat '.listed' key. Calculate it dynamically using:
-   const listedPercent = stats.total_supply ? ((stats.num_listed || stats.listings_count || 0) / stats.total_supply * 100).toFixed(1) + '%' : '6.5%';
-   Ensure this value maps correctly to the UI cell.
+POOL FIX:
+- Paginate /agents/list to build a pool of up to 500 agents (limit=100 across pages/cursors), cache as 'agents_pool'. Draw 80 via the existing weighted sampler.
 
-2. Fix SACRIFICES TODAY: The timestamp logic is failing. Ensure you are handling block timestamps correctly just like in briefing.js. If the API timestamp is in seconds, multiply by 1000 before comparing it to the 24-hour cutoff (Date.now() - 24 * 3600000).
+ACCUMULATION FIX — stop stacking faces, deposit per-agent on-chain glyphs:
+For each drawn agent, derive a deterministic glyph from its on-chain data, NOT its avatar bitmap:
+- seed = hashStr(tokenId + '-' + sessionSalt)
+- prng = createPRNG(seed)
+- center cell: cx,cy derived from (tokenId hash) mod 40 — each agent occupies a distinct region
+- glyph size/density driven by traits: radius = clamp(2 + level/3, 2, 6); intensity = weight (prestige+burns based)
+- shape style chosen by agent type: human=filled disc, cat=ring, alien=scatter cluster, agent=cross/plus
+- stamp the glyph into accGrid at (cx,cy) with intensity, using prng for organic edge variation
+This way each agent contributes a distinct mark at a distinct location; 80 different agents = 80 different marks = a unique composition every generation.
 
-3. Fix BEST SALE Fallback: If OpenSea events fail to return the single highest daily sale, parse the recent sales from the stats object or use your local execution state cache as a safe baseline instead of leaving it as '--'.
+After accumulation: keep freq-based distinctiveness dampen/boost, normalize, threshold (~30-40% fill), one majority-filter cleanup pass, render.
 
-Do NOT touch any CSS, layout structural properties, or the window header buttons. Only fix the data injection logic.
+Emit emergence:complete with agentCount. Output a diff and tell me the threshold value you used.
