@@ -700,6 +700,8 @@ body::after {
 }
 .launcher-app-item:hover { border-color: var(--c-dark); background: var(--c-dark); color: var(--c-light); }
 .launcher-app-item.dragging { opacity: 0.5; }
+.icon-cutout { fill: var(--c-light); }
+.launcher-app-item:hover .icon-cutout { fill: var(--c-dark); }
 .launcher-app-name { display: block; margin-top: 4px; font-size: 10px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #launcher-tooltip {
     position: fixed;
