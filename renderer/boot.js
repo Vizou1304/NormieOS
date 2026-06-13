@@ -92,19 +92,31 @@ export function animateAlphaBuild(imgUrl, canvasElement) {
     });
 }
 
-export function checkOllamaReady() {
-    return new Promise(resolve => {
-        const deadline = Date.now() + 15_000;
-        const poll = async () => {
-            try {
-                const res = await fetch('http://localhost:11434/api/tags', {
-                    signal: AbortSignal.timeout(400)
-                });
-                if (res.ok) { resolve(true); return; }
-            } catch {}
-            if (Date.now() >= deadline) { resolve(false); return; }
-            setTimeout(poll, 500);
-        };
-        poll();
-    });
+export async function initOllamaState() {
+    const fallback = { online: false, model: localStorage.getItem('normie_model') || 'mistral:7b', installed: [], downloading: false, downloadModel: null };
+    try {
+        const res = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+        if (!res.ok) { if (window.NormieState) window.NormieState.ollama = fallback; return false; }
+        const data = await res.json();
+        const installed = (data.models ?? []).map(m => m.name);
+        const saved = localStorage.getItem('normie_model') || 'mistral:7b';
+        let activeModel;
+        if (installed.includes(saved)) {
+            activeModel = saved;
+        } else if (installed.length > 0) {
+            activeModel = installed[0];
+            localStorage.setItem('normie_model', activeModel);
+            window._notifier?.showNotif('SYSTEM', `Model ${saved} not found — switched to ${activeModel}`, null);
+        } else {
+            activeModel = saved;
+            window._notifier?.showNotif('SYSTEM', 'No Ollama models installed — run: ollama pull mistral:7b', null);
+        }
+        window.OLLAMA_MODEL = activeModel;
+        const ollamaState = { online: true, model: activeModel, installed, downloading: false, downloadModel: null };
+        if (window.NormieState) window.NormieState.ollama = ollamaState;
+        return true;
+    } catch {
+        if (window.NormieState) window.NormieState.ollama = fallback;
+        return false;
+    }
 }

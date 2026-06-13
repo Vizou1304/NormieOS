@@ -6,109 +6,118 @@ function openControlPanel() {
         { id: 'phi3:mini',         label: 'WHISPER',   ram: '2 GB',   desc: 'Ultra-minimal. Runs on anything.' },
         { id: 'llama3:70b',        label: 'BEHEMOTH',  ram: '40 GB+', desc: 'Maximum power. Requires GPU cluster.' },
     ];
-    const aiSaved = localStorage.getItem('normie_model') || 'mistral:7b';
+    const aiSaved = window.NormieState?.ollama?.model || localStorage.getItem('normie_model') || 'mistral:7b';
     const aiRowsHtml = AI_MODELS.map(m => `
-        <div class="mf-model-row${m.id === aiSaved ? ' mf-selected' : ''}" data-model="${m.id}">
-            <div class="mf-model-label">${m.label}</div>
-            <div class="mf-model-tag">${m.id}</div>
-            <div class="mf-model-ram">${m.ram}</div>
-            <div class="mf-model-desc">${m.desc}</div>
+        <div class="mf-model-row${m.id === aiSaved ? ' mf-selected' : ''}" data-model="${m.id}"
+            style="border:1px solid #48494b;padding:8px 10px;margin-bottom:6px;font-family:'Courier New',monospace;cursor:pointer;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                <span class="mf-model-label" style="font-size:12px;font-weight:bold;letter-spacing:1px;">${m.label}</span>
+                <span class="mf-model-ram" style="font-size:10px;opacity:0.7;">${m.ram}</span>
+            </div>
+            <div class="mf-model-tag" style="font-size:10px;opacity:0.6;margin-bottom:3px;">${m.id}</div>
+            <div class="mf-model-desc" style="font-size:10px;opacity:0.75;">${m.desc}</div>
         </div>
     `).join('');
     const body = window.createNativeWindow('MAINFRAME', `
-        <div class="cp-container">
-            <div class="cp-tabs">
-                <button class="cp-tab active" data-panel="cp-hardware">HARDWARE</button>
-                <button class="cp-tab" data-panel="cp-network">NETWORK</button>
-                <button class="cp-tab" data-panel="cp-system">SYSTEM</button>
-                <button class="cp-tab" data-panel="cp-ai">AI</button>
-                <button class="cp-tab" data-panel="cp-apikeys">API KEYS</button>
-            </div>
+        <div class="window-tabs-bar">
+            <button class="window-tab-btn active" data-panel="cp-hardware">[ HARDWARE ]</button>
+            <button class="window-tab-btn" data-panel="cp-network">[ NETWORK ]</button>
+            <button class="window-tab-btn" data-panel="cp-system">[ SYSTEM ]</button>
+            <button class="window-tab-btn" data-panel="cp-ai">[ AI MODEL ]</button>
+            <button class="window-tab-btn" data-panel="cp-apikeys">[ API KEYS ]</button>
+        </div>
 
-            <div class="cp-panel active" id="cp-hardware">
-                <div class="cp-section-title">// HARDWARE MONITOR</div>
-                <div class="cp-row">
-                    <span class="cp-label">CPU MANA</span>
-                    <div class="cp-gauge"><div class="cp-gauge-fill" id="cp-cpu-fill" style="width:0%"></div></div>
-                    <span class="cp-gauge-val" id="cp-cpu-val">--%</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">HP (BATTERY)</span>
-                    <div class="cp-gauge"><div class="cp-gauge-fill" id="cp-bat-fill" style="width:0%"></div></div>
-                    <span class="cp-gauge-val" id="cp-bat-val">--%</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">RAM USAGE</span>
-                    <div class="cp-gauge"><div class="cp-gauge-fill" id="cp-ram-fill" style="width:0%"></div></div>
-                    <span class="cp-gauge-val" id="cp-ram-val">--MB</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">VRAM</span>
-                    <span class="cp-value" id="cp-vram-val">--</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">CPU NAME</span>
-                    <span class="cp-value" id="cp-cpuname-val">--</span>
-                </div>
+        <div class="tab-content-panel active" id="cp-hardware">
+            <div class="cp-section-title">// HARDWARE MONITOR</div>
+            <div class="cp-row">
+                <span class="cp-label">CPU MANA</span>
+                <div class="cp-gauge"><div class="cp-gauge-fill" id="cp-cpu-fill" style="width:0%"></div></div>
+                <span class="cp-gauge-val" id="cp-cpu-val">--%</span>
             </div>
-
-            <div class="cp-panel" id="cp-network">
-                <div class="cp-section-title">// NETWORK STATUS</div>
-                <div class="cp-row">
-                    <span class="cp-label">WIFI STATUS</span>
-                    <span class="cp-value" id="cp-wifi-val">${navigator.onLine ? '>> CONNECTED' : '>> OFFLINE'}</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">RPC NODE</span>
-                    <span class="cp-value">>> Ethereum Mainnet</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">API STATUS</span>
-                    <span class="cp-value">>> api.normies.art</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">OFFLINE MODE</span>
-                    <label class="cp-check-label">
-                        <input type="checkbox" id="cp-offline" style="display:none">
-                        <span class="cp-check-box" id="cp-offline-box">[ ]</span>
-                        <span class="cp-value" id="cp-offline-val">DISABLED</span>
-                    </label>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">OLLAMA</span>
-                    <span class="cp-value" id="cp-ollama-val">-- CHECKING...</span>
-                </div>
-                <div class="cp-row">
-                    <span class="cp-label">API PING</span>
-                    <span class="cp-value" id="cp-ping-val">-- --ms</span>
-                </div>
+            <div class="cp-row">
+                <span class="cp-label">HP (BATTERY)</span>
+                <div class="cp-gauge"><div class="cp-gauge-fill" id="cp-bat-fill" style="width:0%"></div></div>
+                <span class="cp-gauge-val" id="cp-bat-val">--%</span>
             </div>
+            <div class="cp-row">
+                <span class="cp-label">RAM USAGE</span>
+                <div class="cp-gauge"><div class="cp-gauge-fill" id="cp-ram-fill" style="width:0%"></div></div>
+                <span class="cp-gauge-val" id="cp-ram-val">--MB</span>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">VRAM</span>
+                <span class="cp-value" id="cp-vram-val">--</span>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">CPU NAME</span>
+                <span class="cp-value" id="cp-cpuname-val">--</span>
+            </div>
+        </div>
 
-            <div class="cp-panel" id="cp-system">
-                <div class="cp-section-title">// SYSTEM INFO</div>
-                <div id="cp-sysinfo" style="font-family:'Courier New',monospace;font-size:11px;color:#48494b;line-height:1.9;padding:4px 0 8px 0;"></div>
-                <div class="cp-section-title">// SYSTEM CONFIG</div>
+        <div class="tab-content-panel" id="cp-network">
+            <div class="cp-section-title">// NETWORK STATUS</div>
+            <div class="cp-row">
+                <span class="cp-label">WIFI STATUS</span>
+                <span class="cp-value" id="cp-wifi-val">${navigator.onLine ? '>> CONNECTED' : '>> OFFLINE'}</span>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">RPC NODE</span>
+                <span class="cp-value">>> Ethereum Mainnet</span>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">API STATUS</span>
+                <span class="cp-value">>> api.normies.art</span>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">OFFLINE MODE</span>
+                <label class="cp-check-label">
+                    <input type="checkbox" id="cp-offline" style="display:none">
+                    <span class="cp-check-box" id="cp-offline-box">[ ]</span>
+                    <span class="cp-value" id="cp-offline-val">DISABLED</span>
+                </label>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">OLLAMA</span>
+                <span class="cp-value" id="cp-ollama-val">-- CHECKING...</span>
+            </div>
+            <div class="cp-row">
+                <span class="cp-label">API PING</span>
+                <span class="cp-value" id="cp-ping-val">-- --ms</span>
+            </div>
+        </div>
+
+        <div class="tab-content-panel" id="cp-system">
+            <div class="cp-section-title">// SYSTEM INFO</div>
+            <div id="cp-sysinfo" style="font-family:'Courier New',monospace;font-size:11px;color:#48494b;line-height:1.9;padding:4px 0 8px 0;"></div>
+            <div class="cp-section-title">// SYSTEM CONFIG</div>
+            <div style="border:1px solid #48494b;padding:8px 10px;margin-bottom:6px;">
                 <div class="cp-row">
                     <span class="cp-label">VOLUME</span>
                     <input type="range" class="pixel-slider" id="cp-vol" min="0" max="100" value="80">
                     <span class="cp-gauge-val" id="cp-vol-val">80</span>
                 </div>
-                <div style="font-size:10px;color:#48494b;opacity:0.6;padding:0 0 6px 0;">[ AUDIO CONTROL — ACTIVE ON LUBUNTU ISO ]</div>
+                <div style="font-size:10px;color:#48494b;opacity:0.6;padding-top:2px;">[ AUDIO CONTROL — ACTIVE ON LUBUNTU ISO ]</div>
+            </div>
+            <div style="border:1px solid #48494b;padding:8px 10px;margin-bottom:6px;">
                 <div class="cp-row">
                     <span class="cp-label">BRIGHTNESS</span>
                     <input type="range" class="pixel-slider" id="cp-bright" min="20" max="100" value="100">
                     <span class="cp-gauge-val" id="cp-bright-val">100</span>
                 </div>
-                <div style="font-size:10px;color:#48494b;opacity:0.6;padding:0 0 6px 0;">[ BRIGHTNESS CONTROL — ACTIVE ON LUBUNTU ISO ]</div>
-                <div class="cp-section-title" style="margin-top:10px;">// WALLPAPER</div>
+                <div style="font-size:10px;color:#48494b;opacity:0.6;padding-top:2px;">[ BRIGHTNESS CONTROL — ACTIVE ON LUBUNTU ISO ]</div>
+            </div>
+            <div style="border:1px solid #48494b;padding:8px 10px;margin-bottom:6px;">
+                <div class="cp-section-title" style="margin:0 0 6px 0;">// WALLPAPER</div>
                 <div class="cp-row" style="gap:6px;">
                     <button class="cp-action-btn" id="wp-btn-normie">[ NORMIE ]</button>
                     <button class="cp-action-btn" id="wp-btn-hive">[ HIVE ]</button>
                 </div>
-                <div class="cp-row" style="margin-top:8px;">
+                <div class="cp-row" style="margin-top:6px;">
                     <button class="cp-action-btn" id="cp-clear">[ CLEAR CACHE ]</button>
                 </div>
-                <div class="cp-section-title" style="margin-top:10px;">// DISPLAY</div>
+            </div>
+            <div style="border:1px solid #48494b;padding:8px 10px;margin-bottom:6px;">
+                <div class="cp-section-title" style="margin:0 0 6px 0;">// DISPLAY</div>
                 <div class="cp-row" style="align-items:center;gap:10px;">
                     <span style="font-size:10px;letter-spacing:1px;color:#48494b;">[ TEXT SIZE ]</span>
                     <div class="settings-toggle-group" id="textsize-toggle" style="display:flex;gap:4px;">
@@ -118,74 +127,70 @@ function openControlPanel() {
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="cp-panel" id="cp-ai">
-                <div class="mf-container">
-                    <div class="mf-header">
-                        <div class="mf-title">// NEURAL ENGINE</div>
-                        <div class="mf-subtitle">SELECT OLLAMA MODEL PROFILE</div>
-                    </div>
-                    <div class="mf-model-list" id="cp-ai-model-list">${aiRowsHtml}</div>
-                    <div class="mf-status" id="cp-ai-status">>> MODEL: ${aiSaved}</div>
-                    <div class="mf-actions">
-                        <button class="mf-btn" id="cp-ai-activate">[ ACTIVATE ]</button>
-                        <button class="mf-btn" id="cp-ai-download">[ DOWNLOAD ]</button>
-                    </div>
-                    <div class="mf-pull-cmd" id="cp-ai-pull-cmd" style="display:none;"></div>
-                    <div class="settings-row" style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-                        <span class="settings-label">[ ALPHA VOICE ]</span>
-                        <button id="voice-toggle" class="mf-btn">VOICE: OFF</button>
-                    </div>
-                </div>
+        <div class="tab-content-panel" id="cp-ai">
+            <div class="cp-section-title">// NEURAL ENGINE</div>
+            <div style="font-size:10px;color:#48494b;opacity:0.6;padding:0 0 10px 0;letter-spacing:1px;">SELECT OLLAMA MODEL PROFILE</div>
+            <div id="cp-ai-model-list">${aiRowsHtml}</div>
+            <div class="mf-status" id="cp-ai-status" style="font-family:'Courier New',monospace;font-size:11px;color:#48494b;padding:8px 0;border-top:1px solid #48494b;margin-top:4px;">>> MODEL: ${aiSaved}</div>
+            <div style="display:flex;gap:8px;padding:8px 0;">
+                <button class="mf-btn" id="cp-ai-activate">[ ACTIVATE ]</button>
+                <button class="mf-btn" id="cp-ai-download">[ DOWNLOAD ]</button>
+            </div>
+            <div class="mf-pull-cmd" id="cp-ai-pull-cmd" style="display:none;font-family:'Courier New',monospace;font-size:11px;color:#48494b;padding:6px 0;"></div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px;border-top:1px solid #48494b;padding-top:10px;">
+                <span style="font-family:'Courier New',monospace;font-size:11px;color:#48494b;letter-spacing:1px;">[ ALPHA VOICE ]</span>
+                <button id="voice-toggle" class="mf-btn">VOICE: OFF</button>
+            </div>
+        </div>
+
+        <div class="tab-content-panel" id="cp-apikeys">
+            <div class="cp-section-title">// API KEYS</div>
+            <div style="font-size:10px;color:#48494b;opacity:0.6;padding:0 0 10px 0;">[ STORED LOCALLY — NEVER TRANSMITTED ]</div>
+
+            <div class="cp-section-title">// OPENSEA</div>
+            <div class="cp-row" style="gap:6px;align-items:center;">
+                <span class="cp-label">OPENSEA</span>
+                <input type="password" id="cp-key-opensea" autocomplete="off" spellcheck="false"
+                    style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
+                <button class="cp-action-btn" id="cp-show-opensea">[ SHOW ]</button>
+                <button class="cp-action-btn" id="cp-save-opensea">[ SAVE ]</button>
+            </div>
+            <div style="padding:2px 0 10px 0;">
+                <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-opensea">[ GET KEY → opensea.io/api ]</button>
             </div>
 
-            <div class="cp-panel" id="cp-apikeys">
-                <div class="cp-section-title">// API KEYS</div>
-                <div style="font-size:10px;color:#48494b;opacity:0.6;padding:0 0 10px 0;">[ STORED LOCALLY — NEVER TRANSMITTED ]</div>
+            <div class="cp-section-title">// ANTHROPIC</div>
+            <div class="cp-row" style="gap:6px;align-items:center;">
+                <span class="cp-label">ANTHROPIC</span>
+                <input type="password" id="cp-key-anthropic" autocomplete="off" spellcheck="false"
+                    style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
+                <button class="cp-action-btn" id="cp-show-anthropic">[ SHOW ]</button>
+                <button class="cp-action-btn" id="cp-save-anthropic">[ SAVE ]</button>
+            </div>
+            <div style="padding:2px 0 10px 0;">
+                <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-anthropic">[ GET KEY → console.anthropic.com ]</button>
+            </div>
 
-                <div class="cp-section-title">// OPENSEA</div>
-                <div class="cp-row" style="gap:6px;align-items:center;">
-                    <span class="cp-label">OPENSEA</span>
-                    <input type="password" id="cp-key-opensea" autocomplete="off" spellcheck="false"
-                        style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
-                    <button class="cp-action-btn" id="cp-show-opensea">[ SHOW ]</button>
-                    <button class="cp-action-btn" id="cp-save-opensea">[ SAVE ]</button>
-                </div>
-                <div style="padding:2px 0 10px 0;">
-                    <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-opensea">[ GET KEY → opensea.io/api ]</button>
-                </div>
-
-                <div class="cp-section-title">// ANTHROPIC</div>
-                <div class="cp-row" style="gap:6px;align-items:center;">
-                    <span class="cp-label">ANTHROPIC</span>
-                    <input type="password" id="cp-key-anthropic" autocomplete="off" spellcheck="false"
-                        style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
-                    <button class="cp-action-btn" id="cp-show-anthropic">[ SHOW ]</button>
-                    <button class="cp-action-btn" id="cp-save-anthropic">[ SAVE ]</button>
-                </div>
-                <div style="padding:2px 0 10px 0;">
-                    <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-anthropic">[ GET KEY → console.anthropic.com ]</button>
-                </div>
-
-                <div class="cp-section-title">// GEMINI</div>
-                <div class="cp-row" style="gap:6px;align-items:center;">
-                    <span class="cp-label">GEMINI</span>
-                    <input type="password" id="cp-key-gemini" autocomplete="off" spellcheck="false"
-                        style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
-                    <button class="cp-action-btn" id="cp-show-gemini">[ SHOW ]</button>
-                    <button class="cp-action-btn" id="cp-save-gemini">[ SAVE ]</button>
-                </div>
-                <div style="padding:2px 0 10px 0;">
-                    <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-gemini">[ GET KEY → aistudio.google.com ]</button>
-                </div>
+            <div class="cp-section-title">// GEMINI</div>
+            <div class="cp-row" style="gap:6px;align-items:center;">
+                <span class="cp-label">GEMINI</span>
+                <input type="password" id="cp-key-gemini" autocomplete="off" spellcheck="false"
+                    style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
+                <button class="cp-action-btn" id="cp-show-gemini">[ SHOW ]</button>
+                <button class="cp-action-btn" id="cp-save-gemini">[ SAVE ]</button>
+            </div>
+            <div style="padding:2px 0 10px 0;">
+                <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-gemini">[ GET KEY → aistudio.google.com ]</button>
             </div>
         </div>
     `);
 
-    body.querySelectorAll('.cp-tab').forEach(tab => {
+    body.querySelectorAll('.window-tab-btn').forEach(tab => {
         tab.addEventListener('click', () => {
-            body.querySelectorAll('.cp-tab').forEach(t => t.classList.remove('active'));
-            body.querySelectorAll('.cp-panel').forEach(p => p.classList.remove('active'));
+            body.querySelectorAll('.window-tab-btn').forEach(t => t.classList.remove('active'));
+            body.querySelectorAll('.tab-content-panel').forEach(p => p.classList.remove('active'));
             tab.classList.add('active');
             body.querySelector('#' + tab.dataset.panel).classList.add('active');
         });
@@ -249,6 +254,7 @@ function openControlPanel() {
     body.querySelector('#cp-ai-activate').addEventListener('click', () => {
         localStorage.setItem('normie_model', aiSelected);
         window.OLLAMA_MODEL = aiSelected;
+        if (window.NormieState?.ollama) window.NormieState.ollama.model = aiSelected;
         const status = body.querySelector('#cp-ai-status');
         status.innerText = `>> ACTIVATED: ${aiSelected}`;
         setTimeout(() => { status.innerText = `>> MODEL: ${aiSelected}`; }, 2000);
@@ -436,67 +442,13 @@ function openControlPanel() {
 }
 
 function openMainframe() {
-    const MODELS = [
-        { id: 'mistral:7b',        label: 'GHOST',     ram: '4 GB',   desc: 'Fast generalist. Lightweight stealth agent.' },
-        { id: 'llama3:8b',         label: 'ORACLE',    ram: '6 GB',   desc: 'Meta LLaMA 3. Balanced reasoning and lore.' },
-        { id: 'deepseek-coder:7b', label: 'ARCHITECT', ram: '6 GB',   desc: 'Code-focused mind. Builds and deconstructs.' },
-        { id: 'phi3:mini',         label: 'WHISPER',   ram: '2 GB',   desc: 'Ultra-minimal. Runs on anything.' },
-        { id: 'llama3:70b',        label: 'BEHEMOTH',  ram: '40 GB+', desc: 'Maximum power. Requires GPU cluster.' },
-    ];
-
-    const saved = localStorage.getItem('normie_model') || 'mistral:7b';
-
-    const rowsHtml = MODELS.map(m => `
-        <div class="mf-model-row${m.id === saved ? ' mf-selected' : ''}" data-model="${m.id}">
-            <div class="mf-model-label">${m.label}</div>
-            <div class="mf-model-tag">${m.id}</div>
-            <div class="mf-model-ram">${m.ram}</div>
-            <div class="mf-model-desc">${m.desc}</div>
-        </div>
-    `).join('');
-
-    const body = window.createNativeWindow('MAINFRAME', `
-        <div class="mf-container">
-            <div class="mf-header">
-                <div class="mf-title">// NEURAL ENGINE</div>
-                <div class="mf-subtitle">SELECT OLLAMA MODEL PROFILE</div>
-            </div>
-            <div class="mf-model-list" id="mf-model-list">${rowsHtml}</div>
-            <div class="mf-status" id="mf-status">>> MODEL: ${saved}</div>
-            <div class="mf-actions">
-                <button class="mf-btn" id="mf-activate">[ ACTIVATE ]</button>
-                <button class="mf-btn" id="mf-download">[ DOWNLOAD ]</button>
-            </div>
-            <div class="mf-pull-cmd" id="mf-pull-cmd" style="display:none;"></div>
-        </div>
-    `);
-
-    let selected = saved;
-
-    body.querySelectorAll('.mf-model-row').forEach(row => {
-        row.addEventListener('click', () => {
-            body.querySelectorAll('.mf-model-row').forEach(r => r.classList.remove('mf-selected'));
-            row.classList.add('mf-selected');
-            selected = row.dataset.model;
-            body.querySelector('#mf-status').innerText = `>> MODEL: ${selected}`;
-            body.querySelector('#mf-pull-cmd').style.display = 'none';
-        });
-    });
-
-    body.querySelector('#mf-activate').addEventListener('click', () => {
-        localStorage.setItem('normie_model', selected);
-        window.OLLAMA_MODEL = selected;
-        const status = body.querySelector('#mf-status');
-        status.innerText = `>> ACTIVATED: ${selected}`;
-        setTimeout(() => { status.innerText = `>> MODEL: ${selected}`; }, 2000);
-    });
-
-    body.querySelector('#mf-download').addEventListener('click', () => {
-        const cmd = body.querySelector('#mf-pull-cmd');
-        cmd.innerText = `>> ollama pull ${selected}`;
-        cmd.style.display = 'block';
-    });
+    openControlPanel();
+    setTimeout(() => {
+        const aiTab = document.querySelector('.window-tab-btn[data-panel="cp-ai"]');
+        if (aiTab) aiTab.click();
+    }, 50);
 }
 
 window.openControlPanel = openControlPanel;
-window.getNormieAPIKey = (name) => localStorage.getItem('normie_apikey_' + name);
+window.openMainframe    = openMainframe;
+window.getNormieAPIKey  = (name) => localStorage.getItem('normie_apikey_' + name);

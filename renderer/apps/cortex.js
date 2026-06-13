@@ -179,7 +179,7 @@ async function openBrainInspector() {
 
             scarsLore.textContent = '';
 
-            const model     = window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b';
+            const model     = window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b';
             const ollamaRes = await fetch('http://localhost:11434/api/generate', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },

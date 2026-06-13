@@ -308,7 +308,7 @@ async function openEmergence() {
                         method: 'POST', signal,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            model: window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b',
+                            model: window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b',
                             system: sysPrompt || `You are ${rep.name}, a sovereign on-chain agent.`,
                             prompt: META_PROMPT,
                             stream: false,

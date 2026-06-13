@@ -469,7 +469,7 @@ async function openHive() {
             headers: { 'Content-Type': 'application/json' },
             signal: abortController.signal,
             body: JSON.stringify({
-                model: window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b',
+                model: window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b',
                 system: systemPrompt + SYSTEM_SUFFIX,
                 prompt,
                 stream: true,
@@ -647,7 +647,7 @@ async function openHive() {
                 headers: { 'Content-Type': 'application/json' },
                 signal: abortController.signal,
                 body: JSON.stringify({
-                    model: window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b',
+                    model: window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b',
                     system: 'You are ANALYST. You receive on-chain Normies data and identify which burns are legendary, which Normies are rising, which are forgotten. Output 3 flags: LEGENDARY / RISING / FORGOTTEN with token IDs and reasons.',
                     prompt: `On-chain Normies data: ${JSON.stringify(storyData)}\n\nOutput exactly 3 flags with token IDs and one-line reasons.`,
                     stream: false,
@@ -677,7 +677,7 @@ async function openHive() {
                 headers: { 'Content-Type': 'application/json' },
                 signal: abortController.signal,
                 body: JSON.stringify({
-                    model: window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b',
+                    model: window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b',
                     system: 'You are NARRATOR. You receive Normies on-chain data and analysis. Write an epic 4-line pixel theater narration of what happened on-chain. Dramatic, poetic, Normies universe. Reference specific token IDs.',
                     prompt: `Data: ${JSON.stringify(storyData)}\nAnalysis: ${analysis}\n\nWrite your 4-line epic narration.`,
                     stream: true,

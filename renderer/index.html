@@ -147,7 +147,7 @@
     <div id="normie-bubble"></div>
 
     <script type="module">
-        import { showSystemSplash, animateAlphaBuild, checkOllamaReady } from './boot.js';
+        import { showSystemSplash, animateAlphaBuild, initOllamaState } from './boot.js';
         import { APPS } from './apps-registry.js';
         import { MempoolMonitor, showMempoolAlert } from './mempool-monitor.js';
         import { parseNeuralPathway, fetchAgentBinding, fetchHolderTokenIds, fetchAgentsCount, fetchA2AManifest, buildSyntheticA2AManifest } from './normie-api.js';
@@ -333,7 +333,7 @@
                 prestRow.style.display = '';
             }
             const agentCount = window.NormieState?.agents?.length;
-            if (agentCount && countEl) countEl.textContent = `${agentCount}/1500`;
+            if (agentCount && countEl) countEl.textContent = `${agentCount} AGENTS`;
         }
 
         // ── Disconnect ───────────────────────────────────────────────
@@ -497,8 +497,6 @@
                         const idx = results.findIndex(x => String(x.id) === String(r.id));
                         if (idx >= 0) results[idx] = r; else results.push(r);
                     });
-                    const best = results.reduce((a, b) => b.score > a.score ? b : a);
-                    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata, alphaId: String(best.id) })); } catch {}
                     batchRes.forEach(r => { if (r.meta) NormieCache.set(`meta_${r.id}`, r.meta, TTL.TRAITS); });
                 };
 
@@ -514,7 +512,7 @@
 
                 window.currentAlphaId = mainId;
                 window.allNormieIds   = tokenIds;
-                window.NormieState = { address, normieIds: tokenIds, allMetadata, alpha: { id: mainId, meta, score: alpha.score }, agents: null, burnStats: null };
+                window.NormieState = { address, normieIds: tokenIds, allMetadata, alpha: { id: mainId, meta, score: alpha.score }, agents: null, burnStats: null, ollama: { online: false, model: localStorage.getItem('normie_model') || 'mistral:7b', installed: [], downloading: false, downloadModel: null } };
                 window.cacheAlphaGender();
                 window.walletPrestige = Math.round(results.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
                 const _pEl  = document.getElementById('sm-prestige-val');
@@ -529,12 +527,17 @@
                         window.NormieState.allMetadata = { ...allMetadata };
                         if (i + BATCH < tokenIds.length) await new Promise(r => setTimeout(r, 150));
                     }
-                    if (results.length > 1) {
-                        const newAlpha = results.reduce((a, b) => b.score > a.score ? b : a);
-                        window.NormieState.alpha = { id: newAlpha.id, meta: newAlpha.meta, score: newAlpha.score };
-                        window.walletPrestige = Math.round(results.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
+                    // Re-elect alpha from the fully merged allMetadata — not from partial results[]
+                    const finalResults = Object.entries(window.NormieState.allMetadata)
+                        .map(([id, meta]) => ({ id, meta, score: calculatePrestigeScore(meta) }))
+                        .filter(r => r.meta);
+                    if (finalResults.length > 0) {
+                        const finalAlpha = finalResults.reduce((a, b) => b.score > a.score ? b : a);
+                        window.NormieState.alpha = { id: finalAlpha.id, meta: finalAlpha.meta, score: finalAlpha.score };
+                        window.walletPrestige = Math.round(finalResults.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
                         if (_pEl) _pEl.textContent = window.walletPrestige;
-                        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata, alphaId: String(newAlpha.id) })); } catch {}
+                        // Single cache write after full sync — never partial
+                        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata: window.NormieState.allMetadata, alphaId: String(finalAlpha.id) })); } catch {}
                     }
                     const [agentsData, stats, persona] = await Promise.all([
                         fetch(`${API}/agents/list?sort=newest&limit=100`).then(r=>r.json()).catch(()=>null),
@@ -611,7 +614,7 @@
                     }
 
                     watcher.onActivity(async (event) => {
-                        const model = window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b';
+                        const model = window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b';
                         const agentName = window.currentAgentPersona?.name ?? `#${window.currentAlphaId}`;
 
                         let prompt = '';
@@ -620,7 +623,7 @@
                         if (event.type === 'TRANSFORM') prompt = `You are ${agentName}. A Normie canvas was just edited on-chain. React in 1 sentence, in character.`;
 
                         if (event.type === 'BURN')      notifier.showNotif('ASHFALL', `Burn detected — ${event.delta} token(s) burned`, 'burnwatch');
-                        if (event.type === 'AGENT')     notifier.showNotif('HIVE', `New agent awakened → ${window._normiesWatcher?._snapshot?.count || '?'} / 1500`, 'hive');
+                        if (event.type === 'AGENT')     notifier.showNotif('HIVE', `NEW AGENT`, 'hive');
                         if (event.type === 'TRANSFORM') notifier.showNotif('CANVAS', `Canvas edit detected on-chain`, 'pixelforge');
 
                         if (!prompt) return;
@@ -646,10 +649,10 @@
 
                 fetchAgentsCount().then(count => {
                     const el = document.getElementById('emergence-counter');
-                    if (el) el.textContent = `[ ${count} / 1500 AGENTS ]`;
+                    if (el) el.textContent = `[ ${count} AGENTS ]`;
                 }).catch(() => {
                     const el = document.getElementById('emergence-counter');
-                    if (el) el.textContent = `[ ? / 1500 AGENTS ]`;
+                    if (el) el.textContent = `[ AGENTS ]`;
                 });
 
                 log(`>> IDENTITY MAPPING: ${short}`);
@@ -704,13 +707,11 @@
                 const address = session.namespaces.eip155.accounts[0].split(':')[2];
 
                 modal.classList.remove('active');
-                const _ollamaP = checkOllamaReady();
-                awaken(address).then(() => {
+                awaken(address).then(async () => {
                     log('>> BOOTING NEURAL ENGINE...');
-                    _ollamaP.then(ok => {
-                        log(ok ? '>> NEURAL ENGINE ONLINE' : '>> NEURAL ENGINE OFFLINE — LOCAL AI UNAVAILABLE');
-                        if (ok) window._notifier?.showNotif('SYSTEM', 'Neural Engine online — ' + (window.OLLAMA_MODEL || 'mistral:7b'), null);
-                    });
+                    const ok = await initOllamaState();
+                    log(ok ? '>> NEURAL ENGINE ONLINE' : '>> NEURAL ENGINE OFFLINE — LOCAL AI UNAVAILABLE');
+                    if (ok) window._notifier?.showNotif('SYSTEM', 'Neural Engine online — ' + window.NormieState.ollama.model, null);
                     _showFirstBootOverlay();
                     setTimeout(() => window.startAgentBriefing?.(), 25000);
                 });
@@ -860,7 +861,6 @@
                 <div class="window-header">
                     <span>${title}</span>
                     <div class="window-controls">
-                        ${helpText ? `<button class="window-help">?</button>` : ''}
                         <button class="window-minimize">-</button>
                         <button class="window-close">X</button>
                     </div>
@@ -905,21 +905,6 @@
                 win.remove();
                 taskBtn.remove();
             });
-            if (helpText) {
-                win.querySelector('.window-help').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const existing = win.querySelector('.help-modal');
-                    if (existing) { existing.remove(); return; }
-                    const modal = document.createElement('div');
-                    modal.className = 'help-modal';
-                    modal.innerHTML = `
-                        <div style="font-weight:bold;margin-bottom:8px;border-bottom:1px solid #48494b;padding-bottom:6px;">${title}</div>
-                        <div style="margin-bottom:12px;line-height:1.5;">${helpText}</div>
-                        <button class="help-modal-close">[ CLOSE ]</button>`;
-                    win.appendChild(modal);
-                    modal.querySelector('.help-modal-close').addEventListener('click', () => modal.remove());
-                });
-            }
             win.addEventListener('mousedown', () => {
                 win.style.zIndex = ++zIndexCounter;
                 document.querySelectorAll('.taskbar-window-btn').forEach(b => b.classList.remove('active'));
@@ -1222,6 +1207,7 @@
             { native:'walletorch',    name:'CONDUCTOR',  icon:'walletorch',    desc:'multi-wallet',            section:'INTEL' },
             { native:'burnwatch',     name:'ASHFALL',    icon:'burnwatch',     desc:'burn tracker',            section:'INTEL' },
             { native:'alphaswitch',   name:'PHANTOM',    icon:'alphaswitch',   desc:'alpha switch',            section:'INTEL' },
+            { native:'marketpulse',   name:'MARKET PULSE', icon:'portfolio',  desc:'live market data',        section:'INTEL' },
             { native:'braininspector',name:'CORTEX',     icon:'braininspector',desc:'your agent',              section:'AGENT' },
             { native:'awakening',     name:'AWAKENING',  icon:'awakening',     desc:'register agent',          section:'AGENT' },
             { native:'hive',          name:'HIVE',       icon:'hive',          desc:'collective intelligence', section:'AGENT' },
@@ -1432,6 +1418,7 @@
             dredge:        () => openDredge(),
             tools:         () => openTools(),
             navigateur:    () => window.openNavigateur?.(),
+            marketpulse:   () => window.openMarketPulse?.(),
             leaderboard:   () => createNativeWindow('LEADERBOARD', '<div class="native-loading">>> PHASE 3 — COMING SOON</div>'),
         };
 
@@ -1566,20 +1553,8 @@
             bubble.style.opacity    = '0';
             bubble.style.transition = 'none';
             requestAnimationFrame(() => {
-                bubble.style.display = 'block'; // force layout before offsetWidth read
-                const normie = document.getElementById('desktop-normie') || document.querySelector('.normie-alpha');
-                if (normie) {
-                    const rect       = normie.getBoundingClientRect();
-                    const trueHeight = bubble.offsetHeight || 52;
-                    if (rect.top === 0 && rect.right === 0) {
-                        bubble.style.top  = '60px';
-                        bubble.style.left = '12px';
-                    } else {
-                        bubble.style.left = (rect.left + rect.width / 2 - (bubble.offsetWidth / 2)) + 'px';
-                        bubble.style.top  = (rect.top - trueHeight - 15) + 'px';
-                    }
-                    bubble.style.setProperty('--arrow-x', '30px');
-                }
+                bubble.style.left = 'calc(50vw + 13vh)';
+                bubble.style.top  = 'calc(50vh - 40vh)';
                 bubble.style.opacity = '1';
                 bubble._dismissTimer = setTimeout(() => {
                     bubble.style.transition = 'opacity 500ms';
@@ -1593,11 +1568,9 @@
         // Repositionne la bulle en direct si l'écran change de taille (ex: fermeture DevTools)
         window.addEventListener('resize', () => {
             const bubble = document.getElementById('normie-bubble');
-            const normie = document.getElementById('desktop-normie') || document.querySelector('.normie-alpha');
-            if (bubble && bubble.style.display === 'block' && normie) {
-                const rect = normie.getBoundingClientRect();
-                bubble.style.left = (rect.right - 15) + 'px';
-                bubble.style.top  = (rect.top - bubble.offsetHeight - 10) + 'px';
+            if (bubble && bubble.style.display === 'block') {
+                bubble.style.left = 'calc(50vw + 13vh)';
+                bubble.style.top  = 'calc(50vh - 40vh)';
             }
         });
 
@@ -1653,6 +1626,8 @@
     <script src="apps/pixeleditor.js"></script>
     <script src="apps/walletorch.js"></script>
     <script src="apps/simulator.js"></script>
+    <script src="services/MarketPulseService.js"></script>
+    <script src="apps/market.js"></script>
     <script src="apps/briefing.js"></script>
     <script src="apps/rightclick.js"></script>
     <script src="apps/navigator.js"></script>

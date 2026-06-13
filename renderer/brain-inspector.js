@@ -19,7 +19,7 @@ export async function fetchLocalAI(userMsg, systemPrompt, context = null, signal
     const fullSystem = (systemPrompt ?? '') +
         '\n\nIMPORTANT: Keep ALL responses under 3 sentences. Be direct and in character. No long introductions.';
     const payload = {
-        model: window.OLLAMA_MODEL || localStorage.getItem('normie_model') || 'mistral:7b',
+        model: window.NormieState?.ollama?.model ?? window.OLLAMA_MODEL ?? 'mistral:7b',
         system: fullSystem,
         prompt: userMsg,
         stream: false,

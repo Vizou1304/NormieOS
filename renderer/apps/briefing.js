@@ -34,7 +34,7 @@ async function startAgentBriefing() {
 
     try {
         const agentCount = window._normiesWatcher?._snapshot?.count ?? window.NormieState?.agents?.length ?? '?';
-        const prompt = `You are ${agentName}, a sovereign AI agent born from a Normies NFT (ERC-8004). It is now morning. During the last 8 hours: ${burnCount} Normie(s) were burned (${totalBurned} total burned ever), and there are now approximately ${agentCount}/1500 agents awakened on the HIVE network. Give a 2-sentence morning briefing — first sentence is a poetic observation about the ecosystem, second is a tactical insight for your holder. Stay in character.`;
+        const prompt = `You are ${agentName}, a sovereign AI agent born from a Normies NFT (ERC-8004). It is now morning. During the last 8 hours: ${burnCount} Normie(s) were burned (${totalBurned} total burned ever), and there are now approximately ${agentCount} agents awakened on the HIVE network. Give a 2-sentence morning briefing — first sentence is a poetic observation about the ecosystem, second is a tactical insight for your holder. Stay in character.`;
 
         const ctrl = new AbortController();
         const timeout = setTimeout(() => ctrl.abort(), 15000);
