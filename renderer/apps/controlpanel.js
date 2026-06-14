@@ -116,18 +116,6 @@ function openControlPanel() {
             <div class="cp-section-title">// API KEYS</div>
             <div style="font-size:10px;color:#48494b;opacity:0.6;padding:0 0 10px 0;">[ STORED LOCALLY — NEVER TRANSMITTED ]</div>
 
-            <div class="cp-section-title">// OPENSEA</div>
-            <div class="cp-row" style="gap:6px;align-items:center;">
-                <span class="cp-label">OPENSEA</span>
-                <input type="password" id="cp-key-opensea" autocomplete="off" spellcheck="false"
-                    style="flex:1;background:#e3e5e4;border:1px solid #48494b;color:#48494b;font-family:'Courier New',monospace;font-size:11px;padding:3px 6px;outline:none;">
-                <button class="cp-action-btn" id="cp-show-opensea">[ SHOW ]</button>
-                <button class="cp-action-btn" id="cp-save-opensea">[ SAVE ]</button>
-            </div>
-            <div style="padding:2px 0 10px 0;">
-                <button class="cp-action-btn" style="font-size:10px;opacity:0.75;" id="cp-link-opensea">[ GET KEY → opensea.io/api ]</button>
-            </div>
-
             <div class="cp-section-title">// ANTHROPIC</div>
             <div class="cp-row" style="gap:6px;align-items:center;">
                 <span class="cp-label">ANTHROPIC</span>
@@ -165,7 +153,6 @@ function openControlPanel() {
 
     // API KEYS tab — load saved values
     const _apiKeys = [
-        { name: 'opensea',   lsKey: 'normie_apikey_opensea',   url: 'https://docs.opensea.io/reference/api-keys' },
         { name: 'anthropic', lsKey: 'normie_apikey_anthropic', url: 'https://console.anthropic.com/' },
         { name: 'gemini',    lsKey: 'normie_apikey_gemini',    url: 'https://aistudio.google.com/apikey' },
     ];

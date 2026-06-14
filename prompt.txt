@@ -1,14 +1,23 @@
-Let's continue cleaning up the Mainframe. The user has resolved the OpenSea issue and no longer needs the OpenSea API key input in the Control Panel. 
+As the Architect, we need to optimize the UX of the Emergence app in 'renderer/apps/emergence.js'. We want to remove the live AI thought text to keep the UI clean, and we must pre-fetch the agents before allowing the user to click Generate.
 
-Please modify 'renderer/apps/controlpanel.js' to remove it completely:
+Please make the following architectural updates:
 
-1. REMOVE THE OPENSEA HTML:
-   Inside the `body.innerHTML` template, locate the `<div class="tab-content-panel" id="cp-apikeys">` section. 
-   Delete the exact following blocks related to OpenSea:
-   - The title: `<div class="cp-section-title">// OPENSEA</div>`
-   - The entire `<div class="cp-row">` containing the '#cp-key-opensea' input and the show/save buttons.
-   - The `<div style="padding:2px 0 10px 0;">` containing the '#cp-link-opensea' button.
+REMOVE THE DELIBERATION TEXT:
 
-2. UPDATE THE API KEYS LOGIC:
-   Further down in the file, locate the `const _apiKeys = [...]` array.
-   Remove the object `{ name: 'opensea', lsKey: 'normie_apikey_opensea', url: '...' }` from this array so the script doesn't try to attach event listeners to the deleted HTML elements.
+In the body.innerHTML layout, completely delete the <div id="em-deliberation"> element.
+
+Delete the deliberateEl variable declaration.
+
+Inside the generate function, inside the Ollama deliberation loop, completely delete all lines of code that append text to deliberateEl. We only want to keep the final #em-contributors logic at the very end of the function.
+
+PRE-FETCH AGENTS (BLOCK GENERATION UNTIL READY):
+
+In the HTML layout, add the disabled attribute to the #em-generate button and change its default text to [ AWAKENING HIVE... ].
+
+Extract the agent pool fetching logic (the pagination loop that fetches up to 500 agents and saves to window.NormieCache) out of the generate function.
+
+Place this fetching logic into a self-executing async function that runs immediately when openEmergence is called.
+
+Once this initial fetch is complete and the agents are successfully cached, enable the #em-generate button and change its text to [ GENERATE NEW ].
+
+The generate function should now simply retrieve the agents from the cache synchronously, rather than fetching them.
