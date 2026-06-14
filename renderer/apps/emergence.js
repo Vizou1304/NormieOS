@@ -68,7 +68,7 @@ async function openEmergence() {
         <div style="padding:8px 14px;border-bottom:1px solid #48494b;flex-shrink:0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
                 <span id="em-counter" style="font-size:var(--font-size-title);font-weight:bold;letter-spacing:1px;">0 AGENTS CONTRIBUTED</span>
-                <button id="em-generate" style="border:2px solid #48494b;padding:4px 10px;font-family:'Courier New',monospace;font-size:10px;background:#48494b;color:#e3e5e4;cursor:pointer;letter-spacing:1px;">[ GENERATE NEW ]</button>
+                <button id="em-generate" disabled style="border:2px solid #48494b;padding:4px 10px;font-family:'Courier New',monospace;font-size:10px;background:#48494b;color:#e3e5e4;cursor:pointer;letter-spacing:1px;">[ AWAKENING HIVE... ]</button>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
                 <div style="flex:1;height:6px;background:#e3e5e4;border:1px solid #48494b;overflow:hidden;">
@@ -81,7 +81,6 @@ async function openEmergence() {
             <div id="em-status" style="font-size:var(--font-size-log);letter-spacing:1px;line-height:1.6;padding:2px 0;margin-bottom:6px;min-height:16px;">
                 >> FORGING PIXELS... 0/50
             </div>
-            <div id="em-deliberation" style="font-size:var(--font-size-log);letter-spacing:0.5px;text-align:left;width:400px;height:50px;overflow:hidden;margin-bottom:6px;line-height:1.6;white-space:pre-wrap;"></div>
             <div style="position:relative;display:inline-block;flex-shrink:0;">
                 <canvas id="em-canvas" width="400" height="400"
                     style="border:2px solid #48494b;image-rendering:pixelated;display:block;"></canvas>
@@ -101,7 +100,6 @@ async function openEmergence() {
     const progressBar    = body.querySelector('#em-progress-bar');
     const progressLabel  = body.querySelector('#em-progress-label');
     const statusEl       = body.querySelector('#em-status');
-    const deliberateEl   = body.querySelector('#em-deliberation');
 
     const setProgress = (count, total = 1500) => {
         const pct = Math.min(100, (count / total) * 100).toFixed(2);
@@ -113,6 +111,37 @@ async function openEmergence() {
     const generateBtn    = body.querySelector('#em-generate');
     const ctx            = canvas.getContext('2d');
     const scanOverlay    = body.querySelector('#em-scan-overlay');
+
+    // ── Pre-fetch agent pool on window open — unlocks GENERATE when ready ──
+    (async () => {
+        let allRaw = window.NormieCache.get('agents_pool');
+        if (!allRaw || allRaw.length < 200) {
+            allRaw = [];
+            let cursor = null;
+            for (let page = 0; page < 5 && allRaw.length < 500; page++) {
+                if (!body.closest('.os-window')) return;
+                const url = cursor
+                    ? `${API}/agents/list?sort=newest&limit=100&cursor=${encodeURIComponent(cursor)}`
+                    : `${API}/agents/list?sort=newest&limit=100`;
+                const r = await fetch(url).catch(() => null);
+                if (!r?.ok) break;
+                const d = await r.json().catch(() => null);
+                if (!d) break;
+                const items = Array.isArray(d) ? d : (d.agents ?? d.items ?? d.data ?? d.tokens ?? []);
+                allRaw.push(...items);
+                cursor = d.cursor ?? d.nextCursor ?? d.next ?? null;
+                if (!cursor || items.length < 100) break;
+            }
+            if (allRaw.length) window.NormieCache.set('agents_pool', allRaw, window.TTL.PERSONA);
+        }
+        if (!body.closest('.os-window')) return;
+        if (allRaw.length) {
+            generateBtn.disabled = false;
+            generateBtn.textContent = '[ GENERATE NEW ]';
+        } else {
+            statusEl.textContent = '>> HIVE UNREACHABLE — RETRY LATER';
+        }
+    })();
 
     // ── Render 40×40 grid from Int32Array result ──────────────────
     const renderCanvas = result => {
@@ -268,33 +297,12 @@ async function openEmergence() {
         if (scanOverlay) scanOverlay.style.display = 'block';
         counterEl.textContent      = '0 AGENTS CONTRIBUTED';
         statusEl.textContent       = '>> FORGING PIXELS... 0/50';
-        deliberateEl.textContent   = '';
         contributorsEl.textContent = '';
 
         try {
             const displayGrid = new Uint8Array(CELLS); // tracks canvas state; reset on each generate()
-            // 1. Agents pool — paginate up to 500 agents, cached 1h as 'agents_pool'
-            statusEl.textContent = '>> FETCHING AGENT POOL...';
-            let allRaw = window.NormieCache.get('agents_pool');
-            if (!allRaw || allRaw.length < 200) {
-                allRaw = [];
-                let cursor = null;
-                for (let page = 0; page < 5 && allRaw.length < 500; page++) {
-                    const url = cursor
-                        ? `${API}/agents/list?sort=newest&limit=100&cursor=${encodeURIComponent(cursor)}`
-                        : `${API}/agents/list?sort=newest&limit=100`;
-                    const r = await fetch(url, { signal }).catch(() => null);
-                    if (!r?.ok) break;
-                    const d = await r.json().catch(() => null);
-                    if (!d) break;
-                    const items = Array.isArray(d) ? d : (d.agents ?? d.items ?? d.data ?? d.tokens ?? []);
-                    allRaw.push(...items);
-                    cursor = d.cursor ?? d.nextCursor ?? d.next ?? null;
-                    if (!cursor || items.length < 100) break;
-                }
-                if (!allRaw.length) throw new Error('no agents found');
-                window.NormieCache.set('agents_pool', allRaw, window.TTL.PERSONA);
-            }
+            // 1. Agents pool — pre-fetched on window open, retrieved from cache synchronously
+            const allRaw = window.NormieCache.get('agents_pool');
             if (!allRaw?.length) throw new Error('no agents found');
 
             // Weighted-random sampling seeded by sessionSalt
@@ -395,17 +403,11 @@ async function openEmergence() {
                             const start = raw.indexOf('{');
                             parsed = JSON.parse(start >= 0 ? raw.slice(start) : raw);
                         } catch {}
-                        const thought      = typeof parsed?.thought === 'string' ? parsed.thought : null;
                         const brush_radius = Number(parsed?.brush_radius) || 3;
                         const chaos_factor = Number(parsed?.chaos_factor) || 0.5;
-                        typeBehaviorMap.set(typeName, { thought, brush_radius, chaos_factor });
-                        deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${window.escapeHTML(rep.name)}]:</span> <span style="opacity:0.8;">${window.escapeHTML(thought ?? 'no thought')}</span></div>`;
-                    } else {
-                        deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${window.escapeHTML(rep.name)}]</span> <span style="opacity:0.8;">— OLLAMA OFFLINE, default</span></div>`;
+                        typeBehaviorMap.set(typeName, { brush_radius, chaos_factor });
                     }
-                } catch {
-                    deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${window.escapeHTML(rep.name)}]</span> <span style="opacity:0.8;">— default</span></div>`;
-                }
+                } catch {}
             }
 
             // ══ CONSENSUS ACCUMULATION ENGINE ═══════════════════════════
