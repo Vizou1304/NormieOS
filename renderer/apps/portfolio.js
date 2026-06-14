@@ -60,11 +60,11 @@ async function openPortfolio() {
         else if (score >= 1000) tierName = 'SILVER';
 
         let profile, profileDesc;
-        if (score >= 10000)             { profile = 'MAÎTRE PIXELISTE';   profileDesc = 'Légende du canvas, sculpteur d\'âmes numériques.'; }
-        else if ((burnCount ?? 0) >= 15) { profile = 'BRÛLEUR LÉGENDAIRE'; profileDesc = 'Sacrifice et création — tes pixels vivent deux fois.'; }
-        else if (tokenIds.length >= 30) { profile = 'GARDIEN DU LEDGER';  profileDesc = 'Gardien des Normies, moteur de l\'écosystème.'; }
-        else if (totalPixels >= 600)    { profile = 'ARTISTE ÉVEILLÉ';    profileDesc = 'Tes pixels parlent pour toi. Art et action fusionnent.'; }
-        else                            { profile = 'INITIATE';            profileDesc = 'Bienvenue dans le pixel. Chaque Normie compte, chaque pixel compte.'; }
+        if (score >= 10000)             { profile = 'PIXEL MASTER';       profileDesc = 'Legend of the canvas. Sculptor of digital souls.'; }
+        else if ((burnCount ?? 0) >= 15) { profile = 'LEGENDARY BURNER';   profileDesc = 'Sacrifice and creation — your pixels live twice.'; }
+        else if (tokenIds.length >= 30) { profile = 'LEDGER GUARDIAN';    profileDesc = 'Guardian of the Normies. Engine of the ecosystem.'; }
+        else if (totalPixels >= 600)    { profile = 'AWAKENED ARTIST';    profileDesc = 'Your pixels speak for you. Art and action fused.'; }
+        else                            { profile = 'INITIATE';            profileDesc = 'Welcome to the pixel. Every Normie counts, every pixel counts.'; }
 
         body.innerHTML = `
             <div class="pf-container">

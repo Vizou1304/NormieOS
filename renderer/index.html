@@ -43,8 +43,14 @@
             <div class="tp-block"></div>
             <div class="tp-block"></div>
         </div>
-        <button class="splash-connect-btn" id="splash-connect-btn" style="display:none;">[ CONNECT ]</button>
-        <button id="dev-skip" style="display:none;margin-top:8px;font-size:10px;opacity:0.4;background:transparent;border:none;color:#e3e5e4;cursor:pointer;font-family:'Courier New',monospace;">[ DEV: 0xb488...7AD1 ]</button>
+        <div id="splash-connect-row" style="display:none;flex-direction:column;align-items:center;gap:10px;">
+            <button class="splash-connect-btn" id="splash-connect-btn">[ CONNECT ]</button>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <input id="manual-addr" type="text" placeholder="0x... — read your wallet" spellcheck="false"
+                    style="font-family:'Courier New',monospace;font-size:11px;padding:4px 8px;border:2px solid #48494b;background:#e3e5e4;color:#48494b;outline:none;width:230px;">
+                <button id="manual-read-btn" style="font-family:'Courier New',monospace;font-size:11px;padding:4px 10px;border:2px solid #48494b;background:#e3e5e4;color:#48494b;cursor:pointer;">[ READ ]</button>
+            </div>
+        </div>
         <div class="splash-status" id="splash-status"></div>
         <!-- Phase Alpha Build — caché au départ -->
         <canvas id="alpha-canvas" width="40" height="40" style="display:none;width:60vh;height:60vh;image-rendering:pixelated;background-color:#e3e5e4;"></canvas>
@@ -198,21 +204,11 @@
         window.fmtWallet = fmtWallet;
         window.escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-        // if (localStorage.getItem('devMode') === 'true') {
-        //     document.getElementById('splash-screen').style.display = 'none';
-        //     document.getElementById('desktop').style.display = 'block';
-        //     document.getElementById('normie-dock').style.display = 'flex';
-        //     window.currentWalletAddress = '0x8a8035f056af830b7205c58c1dc037f826fc2b92';
-        //     window.NormieState = { address: '0x8a8035f056af830b7205c58c1dc037f826fc2b92', normieIds: [], allMetadata: {}, alpha: null };
-        //     awaken('0x8a8035f056af830b7205c58c1dc037f826fc2b92');
-        // } else {
         showSystemSplash(() => {
             const bootBar = document.getElementById('teaser-boot-bar');
             if (bootBar) bootBar.style.display = 'none';
-            document.getElementById('splash-connect-btn').style.display = '';
-            document.getElementById('dev-skip').style.display = '';
+            document.getElementById('splash-connect-row').style.display = 'flex';
         });
-        // }
 
         const appUrls = {
             canvas:  'https://canvas.normies.art/',
@@ -353,6 +349,7 @@
                 } catch (_) {}
                 wcClient = null;
             }
+            clearWCStorage();
             clearInterval(_ollamaIntervalId);
             window.currentWalletAddress = null;
             updateStatusBits(0, 0);
@@ -372,7 +369,7 @@
                 const el = document.getElementById(id);
                 if (el) el.style.display = '';
             });
-            document.getElementById('splash-connect-btn')?.style.setProperty('display', 'none');
+            document.getElementById('splash-connect-row')?.style.setProperty('display', 'none');
             document.getElementById('alpha-canvas')?.style.setProperty('display', 'none');
             document.getElementById('alpha-build-label')?.style.setProperty('display', 'none');
             const splash = document.getElementById('splash-screen');
@@ -672,7 +669,7 @@
                 const buildCanvas = document.getElementById('alpha-canvas');
 
                 // ISO TEST MODE — full alpha build animation enabled
-                ['splash-logo','splash-title','teaser-boot-bar','splash-connect-btn','splash-status'].forEach(id => {
+                ['splash-logo','splash-title','teaser-boot-bar','splash-connect-row','splash-status'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 });
@@ -779,13 +776,46 @@
         }
 
         // ── TOUR → renderer/apps/tour.js ─────────────────────────────────────
+        function clearWCStorage() {
+            Object.keys(localStorage)
+                .filter(k => k.startsWith('wc@') || k.toLowerCase().includes('walletconnect'))
+                .forEach(k => localStorage.removeItem(k));
+        }
+
         async function initWC() {
             if (wcClient) return wcClient;
-            wcClient = await SignClient.init({
-                projectId: WC_PROJECT_ID,
-                metadata: { name: 'NormiesOS', description: 'NormiesOS — Normies NFT Desktop', url: 'https://normies.art', icons: [] }
-            });
-            return wcClient;
+            const wcMeta = { projectId: WC_PROJECT_ID, metadata: { name: 'NormiesOS', description: 'NormiesOS — Normies NFT Desktop', url: 'https://normies.art', icons: [] } };
+            try {
+                wcClient = await SignClient.init(wcMeta);
+                return wcClient;
+            } catch (err) {
+                if (/no matching key|session topic/i.test(err.message)) {
+                    clearWCStorage();
+                    wcClient = null;
+                    wcClient = await SignClient.init(wcMeta);
+                    return wcClient;
+                }
+                throw err;
+            }
+        }
+
+        async function _afterAwaken() {
+            log('>> BOOTING NEURAL ENGINE...');
+            const ok = await initOllamaState();
+            log(ok ? '>> NEURAL ENGINE ONLINE' : '>> NEURAL ENGINE OFFLINE — LOCAL AI UNAVAILABLE');
+            if (ok) window._notifier?.showNotif('SYSTEM', 'Neural Engine online — ' + window.NormieState.ollama.model, null);
+            _showFirstBootOverlay();
+            setTimeout(() => window.startAgentBriefing?.(), 25000);
+        }
+
+        function connectViaManual() {
+            const addr   = document.getElementById('manual-addr').value.trim();
+            const status = document.getElementById('splash-status');
+            if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) {
+                status.innerText = 'Invalid address';
+                return;
+            }
+            awaken(addr).then(_afterAwaken);
         }
 
         async function connectViaWC() {
@@ -816,17 +846,19 @@
                 }
 
                 const session = await approval();
-                const address = session.namespaces.eip155.accounts[0].split(':')[2];
+                const accounts = session?.namespaces?.eip155?.accounts;
+                if (!accounts?.[0]) {
+                    status.innerText = 'ERROR: No accounts returned from wallet';
+                    return;
+                }
+                const address = accounts[0].split(':')[2];
+                if (!address) {
+                    status.innerText = 'ERROR: Invalid account format';
+                    return;
+                }
 
                 modal.classList.remove('active');
-                awaken(address).then(async () => {
-                    log('>> BOOTING NEURAL ENGINE...');
-                    const ok = await initOllamaState();
-                    log(ok ? '>> NEURAL ENGINE ONLINE' : '>> NEURAL ENGINE OFFLINE — LOCAL AI UNAVAILABLE');
-                    if (ok) window._notifier?.showNotif('SYSTEM', 'Neural Engine online — ' + window.NormieState.ollama.model, null);
-                    _showFirstBootOverlay();
-                    setTimeout(() => window.startAgentBriefing?.(), 25000);
-                });
+                awaken(address).then(_afterAwaken);
 
             } catch (err) {
                 status.innerText = `ERROR: ${err.message}`;
@@ -840,10 +872,8 @@
         document.getElementById('splash-connect-btn').addEventListener('click', () => {
             connectViaWC();
         });
-
-        document.getElementById('dev-skip').addEventListener('click', () => {
-            awaken('0x8a8035f056af830b7205c58c1dc037f826fc2b92').then(() => { _showFirstBootOverlay(); setTimeout(() => window.startAgentBriefing?.(), 25000); });
-        });
+        document.getElementById('manual-read-btn').addEventListener('click', connectViaManual);
+        document.getElementById('manual-addr').addEventListener('keydown', e => { if (e.key === 'Enter') connectViaManual(); });
 
         // ── Systray ──────────────────────────────────────────────────
         // Ollama ping
@@ -1115,8 +1145,8 @@
         }
 
         function _hwGenerateSeedDots() {
-            const alphaId = String(window.NormieState?.alpha?.id ?? '6594');
-            const wallet  = String(window.NormieState?.address ?? '0x8a8035f056af830b7205c58c1dc037f826fc2b92');
+            const alphaId = String(window.NormieState?.alpha?.id ?? '');
+            const wallet  = String(window.NormieState?.address ?? '');
             const seedStr = alphaId + wallet.slice(-8);
             let seed = seedStr.split('').reduce((h, c) => ((h * 31 + c.charCodeAt(0)) | 0), 0);
             const rand = () => {
