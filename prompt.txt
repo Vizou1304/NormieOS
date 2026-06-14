@@ -1,22 +1,45 @@
-Let's streamline the Mainframe (Control Panel) by removing redundant tabs and unnecessary system information, keeping it ultra-minimalist.
+As the Architect of NormiesOS, we are finalizing 'renderer/apps/emergence.js'. We need to fix the UI layout shift and replace the blurry math-based glyphs with pure, lore-driven binary matrices that erode organically based on AI chaos.
 
-In 'renderer/apps/controlpanel.js', please make the following surgical removals:
+Please implement the following architectural changes:
 
-1. REMOVE THE 'NETWORK' TAB COMPLETELY:
-   - In the HTML template (the `body.innerHTML` block), delete the button: `<button class="window-tab-btn" data-panel="cp-network">[ NETWORK ]</button>`.
-   - In the HTML template, delete the entire `<div class="tab-content-panel" id="cp-network"> ... </div>` block.
-   - Delete the click event listener associated with `#cp-offline-box` (the offline mode toggle) further down in the file.
-   - Delete the async function that pings the API (`const pingEl = body.querySelector('#cp-ping-val'); ...`).
+1. FIX THE LAYOUT SHIFT (CSS/UI):
+   - In the main flex wrapper containing the canvas, change overflow-y to 'hidden' and ensure it has a 'relative' position.
+   - Constrain the '#em-deliberation' div to a strict height of 50px with hidden overflow.
+   - Detach the '#em-contributors' div from the document flow by giving it absolute positioning at the bottom (e.g., bottom: 10px), with 90% width, hidden overflow, and text-overflow ellipsis.
 
-2. CLEAN UP 'SYSTEM INFO' DATA:
-   - In the `renderSysInfo` function, remove the redundant lines from the returned array so it ONLY displays the following core technical data:
-     OS, VERSION, CPU, GPU, RAM, and RES.
-   - Specifically, delete these lines from the `renderSysInfo` array:
-     `>> ${pad('UPTIME', 9)}: ${fmtUptime()}`
-     `>> ${pad('NETWORK', 9)}: ${network}`
-     `>> ${pad('WALLET', 9)}: ${walletShort}`
-     `>> ${pad('NORMIES', 9)}: ${window.allNormieIds?.length ?? '?'}`
-     `>> ${pad('PRESTIGE', 9)}: ${window.walletPrestige ?? '?'}`
-   - You can also safely delete the `fmtUptime` and `walletShort` helper variables defined just above `renderSysInfo`, as they are no longer needed.
+2. IMPLEMENT PURE LORE GLYPHS (Binary Matrices):
+   Remove all the floating-point distance math (Math.sqrt, radius falloff) in the "ON-CHAIN GLYPH STAMP" section. Map the shapes to strict [dx, dy] offsets centered around [0,0] based on these exact binary grids (1 = draw pixel, 0 = empty):
 
-Apply these changes to make the Mainframe lean and strictly focused on hardware/AI configuration.
+   HUMAN (Fractal Pulse, 5x5):
+   0 1 0 1 0
+   1 1 1 1 1
+   0 1 1 1 0
+   1 1 1 1 1
+   0 1 0 1 0
+
+   CAT (Multi-Layered Shield, 4x4, center near top-left of the inner gap):
+   1 1 1 1
+   1 0 0 1
+   1 0 1 1
+   1 1 1 1
+
+   ALIEN (Quantum Entanglement, 5x5):
+   1 0 0 0 1
+   0 1 0 1 0
+   0 0 1 0 0
+   0 1 0 1 0
+   1 0 0 0 1
+
+   AGENT (Prismatic Nexus, 5x5):
+   0 0 1 0 0
+   0 1 0 1 0
+   1 0 0 0 1
+   0 1 0 1 0
+   0 0 1 0 0
+
+3. APPLY ORGANIC CHAOS EROSION:
+   Read the 'chaos_factor' from the typeBehaviorMap (default to 0.3 if missing). 
+   When looping through the active pixels of a faction's matrix, roll your `agentPrng()`. If the random value is less than `(chaos_factor * 0.4)`, SKIP drawing that pixel. 
+   If the pixel survives the erosion, add the agent's `weight` to the `accGrid` at those exact integer coordinates. Do not apply any distance-based math or falloff. A pixel is either stamped at full weight, or eroded into nothing.
+
+This will create mathematically pure stamps that look organically battle-worn based on the neural state of the Hive.

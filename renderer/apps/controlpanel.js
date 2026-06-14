@@ -21,7 +21,6 @@ function openControlPanel() {
     const body = window.createNativeWindow('MAINFRAME', `
         <div class="window-tabs-bar">
             <button class="window-tab-btn active" data-panel="cp-hardware">[ HARDWARE ]</button>
-            <button class="window-tab-btn" data-panel="cp-network">[ NETWORK ]</button>
             <button class="window-tab-btn" data-panel="cp-system">[ SYSTEM ]</button>
             <button class="window-tab-btn" data-panel="cp-ai">[ AI MODEL ]</button>
             <button class="window-tab-btn" data-panel="cp-apikeys">[ API KEYS ]</button>
@@ -51,38 +50,6 @@ function openControlPanel() {
             <div class="cp-row">
                 <span class="cp-label">CPU NAME</span>
                 <span class="cp-value" id="cp-cpuname-val">--</span>
-            </div>
-        </div>
-
-        <div class="tab-content-panel" id="cp-network">
-            <div class="cp-section-title">// NETWORK STATUS</div>
-            <div class="cp-row">
-                <span class="cp-label">WIFI STATUS</span>
-                <span class="cp-value" id="cp-wifi-val">${navigator.onLine ? '>> CONNECTED' : '>> OFFLINE'}</span>
-            </div>
-            <div class="cp-row">
-                <span class="cp-label">RPC NODE</span>
-                <span class="cp-value">>> Ethereum Mainnet</span>
-            </div>
-            <div class="cp-row">
-                <span class="cp-label">API STATUS</span>
-                <span class="cp-value">>> api.normies.art</span>
-            </div>
-            <div class="cp-row">
-                <span class="cp-label">OFFLINE MODE</span>
-                <label class="cp-check-label">
-                    <input type="checkbox" id="cp-offline" style="display:none">
-                    <span class="cp-check-box" id="cp-offline-box">[ ]</span>
-                    <span class="cp-value" id="cp-offline-val">DISABLED</span>
-                </label>
-            </div>
-            <div class="cp-row">
-                <span class="cp-label">OLLAMA</span>
-                <span class="cp-value" id="cp-ollama-val">-- CHECKING...</span>
-            </div>
-            <div class="cp-row">
-                <span class="cp-label">API PING</span>
-                <span class="cp-value" id="cp-ping-val">-- --ms</span>
             </div>
         </div>
 
@@ -352,14 +319,6 @@ function openControlPanel() {
     refreshHW();
     const hwTimer = setInterval(refreshHW, 2000);
 
-    body.querySelector('#cp-offline-box').addEventListener('click', () => {
-        const cb  = body.querySelector('#cp-offline');
-        cb.checked = !cb.checked;
-        body.querySelector('#cp-offline-box').innerText = cb.checked ? '[X]' : '[ ]';
-        body.querySelector('#cp-offline-val').innerText = cb.checked ? 'ENABLED' : 'DISABLED';
-        document.getElementById('systray-net').innerText = cb.checked ? 'WIFI:--' : 'WIFI:OK';
-    });
-
     body.querySelector('#cp-vol').addEventListener('input', (e) => {
         body.querySelector('#cp-vol-val').innerText = e.target.value;
         window.systemVolume = Number(e.target.value);
@@ -421,44 +380,13 @@ function openControlPanel() {
         ? (performance.memory.jsHeapSizeLimit / 1073741824).toFixed(1) + ' GB'
         : 'N/A';
     const res = screen.width + 'x' + screen.height;
-    const network = navigator.onLine ? 'ONLINE' : 'OFFLINE';
     const osStr = navigator.platform ?? 'N/A';
 
     body.querySelector('#cp-vram-val').innerText = '>> ' + vramStr;
     body.querySelector('#cp-cpuname-val').innerText = '>> ' + cpuName;
 
-    (async () => {
-        const ollamaEl = body.querySelector('#cp-ollama-val');
-        try {
-            const r = await fetch('http://localhost:11434/api/tags');
-            const d = await r.json();
-            const models = d.models ?? [];
-            ollamaEl.innerText = models.length > 0 ? `>> ONLINE — ${models[0].name}` : '>> ONLINE';
-        } catch { ollamaEl.innerText = '>> OFFLINE'; }
-    })();
-    (async () => {
-        const pingEl = body.querySelector('#cp-ping-val');
-        const t0 = performance.now();
-        try {
-            await fetch('https://api.normies.art/history/stats', { cache: 'no-store' });
-            pingEl.innerText = `>> ${Math.round(performance.now() - t0)}ms`;
-        } catch { pingEl.innerText = '>> TIMEOUT'; }
-    })();
-
     const pad = (s, n) => String(s).padEnd(n);
     const sysinfoEl = body.querySelector('#cp-sysinfo');
-
-    const fmtUptime = () => {
-        const s = Math.floor((Date.now() - (window.sessionStart ?? Date.now())) / 1000);
-        const h = String(Math.floor(s / 3600)).padStart(2, '0');
-        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-        const sec = String(s % 60).padStart(2, '0');
-        return `${h}:${m}:${sec}`;
-    };
-
-    const walletShort = window.currentWalletAddress
-        ? window.fmtWallet(window.currentWalletAddress)
-        : 'N/A';
 
     const renderSysInfo = () => {
         if (!sysinfoEl || !body.closest('.os-window')) return;
@@ -469,11 +397,6 @@ function openControlPanel() {
             `>> ${pad('GPU', 9)}: ${gpuShort}`,
             `>> ${pad('RAM', 9)}: ${ramGB}`,
             `>> ${pad('RES', 9)}: ${res}`,
-            `>> ${pad('UPTIME', 9)}: ${fmtUptime()}`,
-            `>> ${pad('NETWORK', 9)}: ${network}`,
-            `>> ${pad('WALLET', 9)}: ${walletShort}`,
-            `>> ${pad('NORMIES', 9)}: ${window.allNormieIds?.length ?? '?'}`,
-            `>> ${pad('PRESTIGE', 9)}: ${window.walletPrestige ?? '?'}`,
         ].map(line => `<div>${line}</div>`).join('');
     };
 
