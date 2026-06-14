@@ -176,7 +176,7 @@ async function openHive() {
                 <img src="${API}/agents/image/${a.tid}" onerror="this.src='${API}/normie/${a.tid}/image.svg'"
                      style="width:48px;height:48px;image-rendering:pixelated;border:1px solid #48494b;flex-shrink:0;">
                 <div style="font-size:10px;line-height:1.5;overflow:hidden;flex:1;min-width:0;">
-                    <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+                    <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${window.escapeHTML(a.name)}</div>
                     <div style="opacity:0.65;">#${a.tid}</div>
                     <div>● AWAKENED</div>
                 </div>
@@ -210,7 +210,7 @@ async function openHive() {
                         <span style="font-weight:bold;letter-spacing:2px;">A2A MANIFEST</span>
                         <span style="font-size:10px;opacity:0.65;margin-left:8px;">${src}</span>
                     </div>
-                    <pre style="font-size:10px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">${JSON.stringify(manifest, null, 2)}</pre>`;
+                    <pre style="font-size:10px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">${window.escapeHTML(JSON.stringify(manifest, null, 2))}</pre>`;
             });
         });
         updateAgentBar();

@@ -84,16 +84,17 @@ async function openInventory() {
         renderGrid();
 
         try {
-            const batchRes = await fetch(`${window.API}/agents/binding/batch`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tokenIds: items.map(i => i.id) })
-            });
-            const batchData = batchRes.ok ? await batchRes.json().catch(() => ({})) : {};
-            const bindings = batchData.bindings ?? {};
-            items.forEach(item => {
-                item.status = bindings[String(item.id)] ? 'AWAKENED' : 'DORMANT';
-            });
+            let bindings = window.NormieState?.bindings;
+            if (!bindings) {
+                const batchRes = await fetch(`${window.API}/agents/binding/batch`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenIds: items.map(i => String(i.id)) })
+                });
+                const batchData = batchRes.ok ? await batchRes.json().catch(() => ({})) : {};
+                bindings = batchData.bindings ?? {};
+                if (window.NormieState) window.NormieState.bindings = bindings;
+            }
+            items.forEach(item => { item.status = bindings[String(item.id)] ? 'AWAKENED' : 'DORMANT'; });
         } catch {
             items.forEach(item => { item.status = 'DORMANT'; });
         }

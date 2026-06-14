@@ -17,20 +17,28 @@ async function openAwakening() {
     const wallet = window.currentWalletAddress ?? '';
     const walletShort = wallet ? window.fmtWallet(wallet) : '???';
 
+    // Read bindings from NormieState (populated at boot); one batch call if not yet ready
+    let bindings = window.NormieState?.bindings ?? null;
+    if (!bindings) {
+        try {
+            const _br = await fetch(`${window.API}/agents/binding/batch`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenIds: ids.map(String) })
+            });
+            const _bd = _br.ok ? await _br.json().catch(() => ({})) : {};
+            bindings = _bd.bindings ?? {};
+            if (window.NormieState) window.NormieState.bindings = bindings;
+        } catch { bindings = {}; }
+    }
+
     const [rows, statsRes] = await Promise.all([
         Promise.all(ids.map(async id => {
-            let awakened = false;
             let name = `NORMIE #${id}`;
             try {
                 const meta = window.NormieState?.allMetadata?.[String(id)] ?? await fetch(`${window.API}/normie/${id}/metadata`).then(r => r.json());
                 if (meta?.name) name = meta.name;
             } catch {}
-            try {
-                const data = await window.fetchAgentBinding(id);
-                const agentId = data?.binding?.agentId ?? data?.agentId;
-                awakened = !!agentId;
-            } catch {}
-            return { id, name, awakened };
+            return { id, name, awakened: !!bindings[String(id)] };
         })),
         fetch(`${window.API}/history/stats`).catch(() => null)
     ]);

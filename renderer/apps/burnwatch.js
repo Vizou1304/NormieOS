@@ -50,14 +50,14 @@ async function openBurnWatch() {
             if (!burnedTokens.length) {
                 return [`<div onclick="window.openBurnDetail(event,'${commitId}','${time}','${pixels}')" style="${ROW}">
                     <div style="width:32px;height:32px;border:1px solid #48494b;flex-shrink:0;background:#e3e5e4;"></div>
-                    <span>? &nbsp; ${short(by)}</span>
+                    <span>? &nbsp; ${window.escapeHTML(short(by))}</span>
                 </div>`];
             }
             return burnedTokens.map(t => {
                 const tid = t.tokenId ?? t.token_id ?? t.id ?? t;
                 return `<div onclick="window.openBurnDetail(event,'${commitId}','${time}','${pixels}')" style="${ROW}">
                     <img src="${window.API}/history/burned/${tid}/image.svg" onerror="this.style.visibility='hidden'" style="width:32px;height:32px;image-rendering:pixelated;border:1px solid #48494b;flex-shrink:0;">
-                    <span style="flex:1;">#${tid} &nbsp; ${short(by)}</span>
+                    <span style="flex:1;">#${window.escapeHTML(String(tid))} &nbsp; ${window.escapeHTML(short(by))}</span>
                     <span style="color:#48494b;opacity:0.65;">${time}</span>
                 </div>`;
             });
@@ -163,7 +163,7 @@ async function openBurnWatch() {
                     if (ts) { const dt = new Date(typeof ts === 'number' && ts < 1e12 ? ts * 1000 : Number(ts)); if (!isNaN(dt)) timeStr = ` &nbsp;${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; }
                     const cc = v.changeCount ?? v.changes ?? '';
                     const np = v.newPixelCount ?? v.newPixels ?? '';
-                    return `<div class="ch-row" data-idx="${i}" style="padding:3px 6px;cursor:pointer;border-bottom:1px dashed rgba(72,73,75,0.3);font-size:10px;">v${vNum}${cc !== '' ? ` &nbsp;Delta${cc}` : ''}${np !== '' ? ` +${np}` : ''}${timeStr}</div>`;
+                    return `<div class="ch-row" data-idx="${i}" style="padding:3px 6px;cursor:pointer;border-bottom:1px dashed rgba(72,73,75,0.3);font-size:10px;">v${window.escapeHTML(String(vNum))}${cc !== '' ? ` &nbsp;Delta${window.escapeHTML(String(cc))}` : ''}${np !== '' ? ` +${window.escapeHTML(String(np))}` : ''}${timeStr}</div>`;
                 }).join('');
                 body.querySelectorAll('.ch-row').forEach(row => {
                     row.addEventListener('click', () => chShowVersion(parseInt(row.dataset.idx)));
@@ -211,7 +211,7 @@ window.openBurnDetail = function(e, commitId, time, pixels) {
 
             modal.innerHTML = `
                 <div style="font-size:10px;letter-spacing:2px;opacity:0.6;margin-bottom:4px;">NORMIES ASHFALL</div>
-                <div style="font-weight:bold;letter-spacing:1px;margin-bottom:10px;border-bottom:1px solid #48494b;padding-bottom:6px;">NORMIE #${tid}${multi}</div>
+                <div style="font-weight:bold;letter-spacing:1px;margin-bottom:10px;border-bottom:1px solid #48494b;padding-bottom:6px;">NORMIE #${window.escapeHTML(String(tid))}${multi}</div>
                 <img src="${window.API}/history/burned/${tid}/image.svg"
                      onerror="this.src='${window.API}/normie/${tid}/image.svg'"
                      style="width:160px;height:160px;image-rendering:pixelated;border:2px solid #48494b;display:block;margin:0 auto 8px;">

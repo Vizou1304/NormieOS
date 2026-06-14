@@ -223,15 +223,11 @@ function openTerminal() {
             if (!alphaId || !addr) { print('ERROR: no Alpha detected.'); return; }
             print('>> ZOMBIE ELIGIBILITY CHECK...');
             try {
-                const [burnsRes, bindingRes] = await Promise.all([
-                    fetch(`${window.API}/history/burns/address/${addr}`),
-                    fetch(`${window.API}/agents/binding/${alphaId}`),
-                ]);
+                const burnsRes = await fetch(`${window.API}/history/burns/address/${addr}`);
                 const bd = await burnsRes.json();
                 const all = Array.isArray(bd) ? bd : (bd.burns ?? bd.data ?? []);
                 const burnCount = all.reduce((s,b) => s + Number(b.tokenCount ?? b.token_count ?? 1), 0);
-                let awakened = false;
-                try { const bb = await bindingRes.json(); awakened = !!(bb?.binding?.agentId ?? bb?.agentId); } catch {}
+                const awakened = !!(window.NormieState?.bindings?.[String(alphaId)]);
                 const THRESHOLD = 20;
                 print(`   BURNS      : ${burnCount} / ${THRESHOLD}`);
                 print(`   AGENT      : ${awakened ? '● AWAKENED' : '○ DORMANT'}`);

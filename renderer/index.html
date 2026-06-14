@@ -196,6 +196,7 @@
         const WC_PROJECT_ID = '8e9d62f70ecd6a8c664107ad87c7caa1';
         const fmtWallet = addr => (!addr || addr.length < 10) ? addr : addr.slice(0, 6) + '...' + addr.slice(-4).toUpperCase();
         window.fmtWallet = fmtWallet;
+        window.escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
         // if (localStorage.getItem('devMode') === 'true') {
         //     document.getElementById('splash-screen').style.display = 'none';
@@ -394,7 +395,7 @@
         // ── Global Ollama network interceptor ─────────────────────────
         const _origFetch = window.fetch;
         window.fetch = async function(...args) {
-            const url = args[0];
+            const url = args[0] instanceof Request ? args[0].url : args[0];
             if (window.NormieState?.llmBypass && typeof url === 'string' && url.includes('11434')) {
                 return new Response(JSON.stringify({ response: 'AI disabled (Standby Mode)' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
             }
@@ -480,90 +481,150 @@
                 splashStatus.innerText = `${tokenIds.length} NORMIE(S) — ALPHA SCAN...`;
 
                 const CACHE_KEY = `normie_boot_${address}`;
+                const ALPHA_KEY = `normie_alpha_${address}`;
                 const CACHE_TTL = 30 * 60 * 1000;
-                const BATCH     = 20;
 
+                // ── Seed allMetadata from cache ───────────────────────────────────
+                const _raw     = (() => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; } })();
+                const _cacheOk = _raw && (Date.now() - (_raw.ts ?? 0)) < CACHE_TTL;
                 let allMetadata = {};
-                let results     = [];
+                if (_cacheOk && _raw.allMetadata) allMetadata = { ..._raw.allMetadata };
+                const _idsStr = tokenIds.map(String);
 
-                // ── Cache hit: reconstruct results instantly ────────────
-                const _raw   = (() => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; } })();
-                const _valid = _raw && (Date.now() - (_raw.ts ?? 0) < CACHE_TTL) && _raw.alphaId;
-                if (_valid) {
-                    allMetadata = _raw.allMetadata ?? {};
-                    results = tokenIds.map(id => ({ id, meta: allMetadata[String(id)] ?? null, score: calculatePrestigeScore(allMetadata[String(id)]) }));
-                    splashStatus.innerText = `${tokenIds.length} NORMIE(S) — CACHE HIT`;
-                }
-
-                // ── Fetch one batch, merge and persist cache ───────────
-                const fetchBatch = async (ids) => {
-                    const batchRes = await Promise.all(ids.map(async id => {
+                // ── 429-aware fetch with retry (up to 3 attempts) ────────────────
+                // Returns null on permanent failure → token excluded from election.
+                const fetchMeta = async (id) => {
+                    for (let attempt = 0; attempt < 3; attempt++) {
                         try {
                             const r = await fetch(`${API}/normie/${id}/metadata`);
-                            const m = await r.json();
-                            return { id, meta: m, score: calculatePrestigeScore(m) };
-                        } catch { return { id, meta: null, score: 0 }; }
-                    }));
-                    batchRes.forEach(r => {
-                        if (r.meta) allMetadata[String(r.id)] = r.meta;
-                        const idx = results.findIndex(x => String(x.id) === String(r.id));
-                        if (idx >= 0) results[idx] = r; else results.push(r);
-                    });
-                    batchRes.forEach(r => { if (r.meta) NormieCache.set(`meta_${r.id}`, r.meta, TTL.TRAITS); });
+                            if (r.status === 429) {
+                                const wait = (parseInt(r.headers.get('Retry-After'), 10) || 2) * 1000;
+                                console.warn(`[BOOT] 429 on #${id} — retry in ${wait}ms (attempt ${attempt + 1}/3)`);
+                                await new Promise(ok => setTimeout(ok, wait));
+                                continue;
+                            }
+                            if (!r.ok) { console.warn(`[BOOT] HTTP ${r.status} on #${id} — excluded from election`); return null; }
+                            return await r.json();
+                        } catch (e) { console.warn(`[BOOT] fetch error on #${id}:`, e?.message); return null; }
+                    }
+                    console.warn(`[BOOT] #${id} unresolved after 3 attempts — excluded from election`);
+                    return null;
                 };
 
-                // First batch is awaited — needed before desktop can render
-                if (!_valid) await fetchBatch(tokenIds.slice(0, BATCH));
+                // ── Controlled-concurrency queue: 4 parallel slots, 100ms spacing ─
+                const fetchQueue = async (ids) => {
+                    let cursor = 0;
+                    const worker = async () => {
+                        while (cursor < ids.length) {
+                            const id = ids[cursor++];
+                            if (allMetadata[id]) continue;
+                            const m = await fetchMeta(id);
+                            if (m) { allMetadata[id] = m; NormieCache.set(`meta_${id}`, m, TTL.TRAITS); }
+                            if (cursor < ids.length) await new Promise(ok => setTimeout(ok, 100));
+                        }
+                    };
+                    await Promise.all(Array.from({ length: 4 }, worker));
+                };
 
-                // ── Alpha from first available results ─────────────────
-                const alpha  = results.reduce((a, b) => b.score > a.score ? b : a);
-                const mainId = alpha.id;
-                const meta   = alpha.meta;
-                const attrs  = Array.isArray(meta?.attributes) ? meta.attributes : [];
-                const getA   = (key) => attrs.find(a => String(a.trait_type ?? '').toLowerCase() === key.toLowerCase())?.value ?? '?';
+                // ── Fast path: validate saved alpha ───────────────────────────────
+                const _savedAlpha = (() => { try { return localStorage.getItem(ALPHA_KEY); } catch { return null; } })();
+                const _alphaKnown = _savedAlpha && _idsStr.includes(String(_savedAlpha));
+
+                let mainId;
+                let _bootBindings = null; // populated in discovery; loaded in background for fast paths
+
+                if (_alphaKnown && allMetadata[String(_savedAlpha)]) {
+                    // Fast path: alpha ID + metadata both cached — zero fetches
+                    mainId = String(_savedAlpha);
+                    splashStatus.innerText = `${tokenIds.length} NORMIE(S) — CACHE HIT`;
+                } else if (_alphaKnown) {
+                    // Alpha ID known but metadata missing — fetch just this one token
+                    splashStatus.innerText = `SCANNING ALPHA #${_savedAlpha}...`;
+                    const _am = await fetchMeta(String(_savedAlpha));
+                    if (_am) allMetadata[String(_savedAlpha)] = _am;
+                    mainId = String(_savedAlpha);
+                } else {
+                    // Discovery: fetch all metadata → one batch binding call → elect awakened alpha
+                    splashStatus.innerText = `SCANNING ${tokenIds.length} ASSET(S)...`;
+                    await fetchQueue(_idsStr);
+                    splashStatus.innerText = 'CHECKING AGENT BINDINGS...';
+                    try {
+                        const _br = await fetch(`${API}/agents/binding/batch`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ tokenIds: _idsStr })
+                        });
+                        if (_br.ok) { const _bd = await _br.json(); _bootBindings = _bd.bindings ?? {}; }
+                    } catch {}
+                    const _bindings  = _bootBindings ?? {};
+                    const _resolved  = _idsStr.filter(id => allMetadata[id]);
+                    const _awakened  = _resolved.filter(id => _bindings[id]);
+                    const _pool      = _awakened.length ? _awakened : _resolved; // fallback: all resolved
+                    if (!_pool.length) throw new Error('NO METADATA RESOLVED — check API connectivity');
+                    const _elected   = _pool
+                        .map(id => ({ id, score: calculatePrestigeScore(allMetadata[id]) }))
+                        .reduce((a, b) => b.score > a.score ? b : a);
+                    mainId = String(_elected.id);
+                    try { localStorage.setItem(ALPHA_KEY, mainId); } catch {}
+                }
+
+                const meta  = allMetadata[String(mainId)] ?? null;
+                const attrs = Array.isArray(meta?.attributes) ? meta.attributes : [];
+                const getA  = (key) => attrs.find(a => String(a.trait_type ?? '').toLowerCase() === key.toLowerCase())?.value ?? '?';
+
+                // ── Fetch agents/info for elected alpha — 404 = dormant, never hangs
+                splashStatus.innerText = `SCANNING ALPHA #${mainId}...`;
+                let _bootPersona = null;
+                try {
+                    _bootPersona = await fetch(`${API}/agents/info/${mainId}`).then(r => r.ok ? r.json() : null).catch(() => null);
+                } catch {}
+
+                const alpha   = { id: mainId, meta, score: calculatePrestigeScore(meta) };
+                const results = _idsStr.map(id => ({ id, score: calculatePrestigeScore(allMetadata[id]) }));
 
                 window.currentAlphaId = mainId;
                 window.allNormieIds   = tokenIds;
-                window.NormieState = { address, normieIds: tokenIds, allMetadata, alpha: { id: mainId, meta, score: alpha.score }, agents: null, burnStats: null, ollama: { online: false, model: localStorage.getItem('normie_model') || 'mistral:7b', installed: [], downloading: false, downloadModel: null } };
+                window.NormieState = { address, normieIds: tokenIds, allMetadata, bindings: _bootBindings, alpha: { id: mainId, meta, score: alpha.score }, agents: null, burnStats: null, ollama: { online: false, model: localStorage.getItem('normie_model') || 'mistral:7b', installed: [], downloading: false, downloadModel: null } };
                 window.cacheAlphaGender();
-                window.walletPrestige = Math.round(results.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
+                window.walletPrestige = Math.round(results.map(r => r.score).sort((a, b) => b - a).slice(0, 5).reduce((s, x) => s + x, 0));
                 const _pEl  = document.getElementById('sm-prestige-val');
                 const _pRow = document.getElementById('sm-prestige-row');
                 if (_pEl) { _pEl.textContent = window.walletPrestige; if (_pRow) _pRow.style.display = ''; }
+                try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata, alphaId: mainId })); } catch {}
 
-                // ── Background: remaining batches + agents/stats/persona ─
+                if (_bootPersona?.name) {
+                    window.currentAgentPersona = _bootPersona;
+                    NormieCache.set(`persona_${mainId}`, _bootPersona, TTL.PERSONA);
+                    const nameEl = document.getElementById('sm-agent-name');
+                    if (nameEl) { nameEl.textContent = _bootPersona.name.toUpperCase(); nameEl.style.display = ''; }
+                }
+
+                // ── Background: remaining metadata + bindings (fast paths) + agents + stats ──
                 (async () => {
-                    const startIdx = _valid ? 0 : BATCH;
-                    for (let i = startIdx; i < tokenIds.length; i += BATCH) {
-                        await fetchBatch(tokenIds.slice(i, i + BATCH));
+                    const _remaining = _idsStr.filter(id => !allMetadata[id]);
+                    if (_remaining.length) {
+                        await fetchQueue(_remaining);
                         window.NormieState.allMetadata = { ...allMetadata };
-                        if (i + BATCH < tokenIds.length) await new Promise(r => setTimeout(r, 150));
+                        window.walletPrestige = Math.round(_idsStr.map(id => calculatePrestigeScore(allMetadata[id])).sort((a, b) => b - a).slice(0, 5).reduce((s, x) => s + x, 0));
+                        if (_pEl) { _pEl.textContent = window.walletPrestige; if (_pRow) _pRow.style.display = ''; }
+                        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata, alphaId: mainId })); } catch {}
                     }
-                    // Re-elect alpha from the fully merged allMetadata — not from partial results[]
-                    const finalResults = Object.entries(window.NormieState.allMetadata)
-                        .map(([id, meta]) => ({ id, meta, score: calculatePrestigeScore(meta) }))
-                        .filter(r => r.meta);
-                    if (finalResults.length > 0) {
-                        const finalAlpha = finalResults.reduce((a, b) => b.score > a.score ? b : a);
-                        window.NormieState.alpha = { id: finalAlpha.id, meta: finalAlpha.meta, score: finalAlpha.score };
-                        window.walletPrestige = Math.round(finalResults.map(r => r.score).sort((a,b) => b-a).slice(0,5).reduce((s,x) => s+x, 0));
-                        if (_pEl) _pEl.textContent = window.walletPrestige;
-                        // Single cache write after full sync — never partial
-                        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tokenIds, allMetadata: window.NormieState.allMetadata, alphaId: String(finalAlpha.id) })); } catch {}
+                    // Load bindings for apps if discovery path didn't already fetch them
+                    if (!window.NormieState.bindings) {
+                        try {
+                            const _br = await fetch(`${API}/agents/binding/batch`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ tokenIds: _idsStr })
+                            });
+                            if (_br.ok) { const _bd = await _br.json(); window.NormieState.bindings = _bd.bindings ?? {}; }
+                        } catch {}
                     }
-                    const [agentsData, stats, persona] = await Promise.all([
+                    const [agentsData, stats] = await Promise.all([
                         fetch(`${API}/agents/list?sort=newest&limit=100`).then(r=>r.json()).catch(()=>null),
                         fetch(`${API}/history/stats`).then(r=>r.json()).catch(()=>null),
-                        fetch(`${API}/agents/info/${mainId}`).then(r=>r.ok?r.json():null).catch(()=>null),
                     ]);
                     if (agentsData) { const all = Array.isArray(agentsData) ? agentsData : (agentsData.agents ?? agentsData.items ?? agentsData.data ?? []); window.NormieState.agents = all; NormieCache.set('agents', all, TTL.PERSONA); }
                     if (stats) window.NormieState.burnStats = stats;
-                    if (persona?.name) {
-                        window.currentAgentPersona = persona;
-                        NormieCache.set(`persona_${mainId}`, persona, TTL.PERSONA);
-                        const nameEl = document.getElementById('sm-agent-name');
-                        if (nameEl) { nameEl.textContent = persona.name.toUpperCase(); nameEl.style.display = ''; }
-                    }
+                    window.dispatchEvent(new CustomEvent('normiestate:alpha-updated', { detail: window.NormieState.alpha }));
                 })();
 
                 const imgUrl      = meta?.image ?? `${API}/normie/${mainId}/image.png`;
@@ -1016,7 +1077,7 @@
 
         function _hwGenerateSeedDots() {
             const alphaId = String(window.NormieState?.alpha?.id ?? '6594');
-            const wallet  = String(window.NormieState?.wallet  ?? '0x8a8035f056af830b7205c58c1dc037f826fc2b92');
+            const wallet  = String(window.NormieState?.address ?? '0x8a8035f056af830b7205c58c1dc037f826fc2b92');
             const seedStr = alphaId + wallet.slice(-8);
             let seed = seedStr.split('').reduce((h, c) => ((h * 31 + c.charCodeAt(0)) | 0), 0);
             const rand = () => {
@@ -1220,11 +1281,11 @@
             // NORMINESWEEPER — bombe pixel art
             minesweeper: `<rect x="8" y="0" width="1" height="1" fill="currentColor"/><rect x="7" y="1" width="1" height="1" fill="currentColor"/><rect x="7" y="2" width="2" height="1" fill="currentColor"/><rect x="5" y="3" width="6" height="1" fill="currentColor"/><rect x="4" y="4" width="8" height="1" fill="currentColor"/><rect x="3" y="5" width="10" height="6" fill="currentColor"/><rect x="4" y="11" width="8" height="1" fill="currentColor"/><rect x="5" y="12" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="2" height="2" fill="currentColor"/><rect x="13" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="13" width="2" height="2" fill="currentColor"/>`,
             // TOOLS — wrench pixel art
-            tools: `<rect x="11" y="0" width="3" height="1" fill="currentColor"/><rect x="12" y="1" width="2" height="1" fill="currentColor"/><rect x="10" y="2" width="4" height="2" fill="currentColor"/><rect x="9" y="4" width="3" height="2" fill="currentColor"/><rect x="7" y="5" width="3" height="2" fill="currentColor"/><rect x="5" y="7" width="3" height="2" fill="currentColor"/><rect x="2" y="9" width="4" height="1" fill="currentColor"/><rect x="1" y="10" width="4" height="2" fill="currentColor"/><rect x="0" y="11" width="2" height="3" fill="currentColor"/><rect x="2" y="12" width="4" height="2" fill="currentColor"/><rect x="4" y="13" width="2" height="2" fill="currentColor"/>`,
+            tools: `<rect x="12" y="1" width="2" height="2" fill="currentColor"/><rect x="10" y="2" width="2" height="2" fill="currentColor"/><rect x="14" y="3" width="2" height="2" fill="currentColor"/><rect x="11" y="4" width="4" height="2" fill="currentColor"/><rect x="9" y="6" width="3" height="2" fill="currentColor"/><rect x="7" y="8" width="3" height="2" fill="currentColor"/><rect x="5" y="10" width="3" height="2" fill="currentColor"/><rect x="3" y="12" width="3" height="2" fill="currentColor"/><rect x="1" y="13" width="2" height="2" fill="currentColor"/>`,
             // NAVIGATOR — globe symétrique 14x14 centré dans 16x16
             navigateur: `<rect x="5" y="1" width="6" height="1" fill="currentColor"/><rect x="3" y="2" width="2" height="1" fill="currentColor"/><rect x="11" y="2" width="2" height="1" fill="currentColor"/><rect x="2" y="3" width="1" height="2" fill="currentColor"/><rect x="13" y="3" width="1" height="2" fill="currentColor"/><rect x="1" y="5" width="1" height="6" fill="currentColor"/><rect x="14" y="5" width="1" height="6" fill="currentColor"/><rect x="2" y="11" width="1" height="2" fill="currentColor"/><rect x="13" y="11" width="1" height="2" fill="currentColor"/><rect x="3" y="13" width="2" height="1" fill="currentColor"/><rect x="11" y="13" width="2" height="1" fill="currentColor"/><rect x="5" y="14" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="14" height="2" fill="currentColor"/><rect x="7" y="1" width="2" height="14" fill="currentColor"/>`,
             // EMERGENCE — cluster neural en spirale fibonacci
-            emergence: `<rect x="7" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="4" width="2" height="2" fill="currentColor"/><rect x="7" y="10" width="2" height="2" fill="currentColor"/><rect x="4" y="7" width="2" height="2" fill="currentColor"/><rect x="10" y="7" width="2" height="2" fill="currentColor"/><rect x="4" y="4" width="1" height="1" fill="currentColor"/><rect x="11" y="4" width="1" height="1" fill="currentColor"/><rect x="4" y="11" width="1" height="1" fill="currentColor"/><rect x="11" y="11" width="1" height="1" fill="currentColor"/><rect x="7" y="1" width="2" height="1" fill="currentColor"/><rect x="7" y="14" width="2" height="1" fill="currentColor"/><rect x="1" y="7" width="1" height="2" fill="currentColor"/><rect x="14" y="7" width="1" height="2" fill="currentColor"/><rect x="2" y="3" width="1" height="1" fill="currentColor"/><rect x="13" y="5" width="1" height="1" fill="currentColor"/><rect x="12" y="13" width="1" height="1" fill="currentColor"/><rect x="3" y="12" width="1" height="1" fill="currentColor"/>`,
+            emergence: `<rect x="7" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="4" width="2" height="2" fill="currentColor"/><rect x="7" y="10" width="2" height="2" fill="currentColor"/><rect x="4" y="7" width="2" height="2" fill="currentColor"/><rect x="10" y="7" width="2" height="2" fill="currentColor"/><rect x="4" y="4" width="1" height="1" fill="currentColor"/><rect x="11" y="4" width="1" height="1" fill="currentColor"/><rect x="4" y="11" width="1" height="1" fill="currentColor"/><rect x="11" y="11" width="1" height="1" fill="currentColor"/><rect x="7" y="1" width="2" height="1" fill="currentColor"/><rect x="7" y="14" width="2" height="1" fill="currentColor"/><rect x="1" y="7" width="1" height="2" fill="currentColor"/><rect x="14" y="7" width="1" height="2" fill="currentColor"/><rect x="3" y="3" width="1" height="1" fill="currentColor"/><rect x="12" y="3" width="1" height="1" fill="currentColor"/><rect x="3" y="12" width="1" height="1" fill="currentColor"/><rect x="12" y="12" width="1" height="1" fill="currentColor"/>`,
         };
 
         // ── NATIVE APPS DATA ─────────────────────────────────────────
@@ -1598,29 +1659,6 @@
         });
 
         // ── Window factory ───────────────────────────────────────────
-        function createWindow(title, url) {
-            const win = document.createElement('div');
-            win.className = 'os-window';
-            win.style.zIndex = ++zIndexCounter;
-            win.style.top  = (50 + (zIndexCounter - 100) * 20) + 'px';
-            win.style.left = (50 + (zIndexCounter - 100) * 20) + 'px';
-            win.innerHTML = `
-                <div class="window-header">
-                    <span>${title}</span>
-                    <button class="window-close">X</button>
-                </div>
-                <iframe class="window-content" src="${url}"></iframe>`;
-
-            document.getElementById('desktop').appendChild(win);
-            win.querySelector('.window-close').addEventListener('click', () => win.remove());
-            win.addEventListener('mousedown', () => win.style.zIndex = ++zIndexCounter);
-
-            const header = win.querySelector('.window-header');
-            let isDragging = false, offsetX, offsetY;
-            header.addEventListener('mousedown', (e) => { isDragging = true; offsetX = e.clientX - win.offsetLeft; offsetY = e.clientY - win.offsetTop; });
-            document.addEventListener('mousemove', (e) => { if (!isDragging) return; win.style.left = (e.clientX - offsetX) + 'px'; win.style.top = (e.clientY - offsetY) + 'px'; });
-            document.addEventListener('mouseup', () => { isDragging = false; });
-        }
     </script>
     <script src="core/state.js"></script>
     <script src="core/erc8257.js"></script>

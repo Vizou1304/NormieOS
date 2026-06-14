@@ -370,12 +370,12 @@ async function openEmergence() {
                         const brush_radius = Number(parsed?.brush_radius) || 3;
                         const chaos_factor = Number(parsed?.chaos_factor) || 0.5;
                         typeBehaviorMap.set(typeName, { thought, brush_radius, chaos_factor });
-                        deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${rep.name}]:</span> <span style="opacity:0.8;">${thought ?? 'no thought'}</span></div>`;
+                        deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${window.escapeHTML(rep.name)}]:</span> <span style="opacity:0.8;">${window.escapeHTML(thought ?? 'no thought')}</span></div>`;
                     } else {
-                        deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${rep.name}]</span> <span style="opacity:0.8;">— OLLAMA OFFLINE, default</span></div>`;
+                        deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${window.escapeHTML(rep.name)}]</span> <span style="opacity:0.8;">— OLLAMA OFFLINE, default</span></div>`;
                     }
                 } catch {
-                    deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${rep.name}]</span> <span style="opacity:0.8;">— default</span></div>`;
+                    deliberateEl.innerHTML += `<div style="padding:2px 0;"><span style="opacity:1;">&gt; ${typeName.toUpperCase()} [${window.escapeHTML(rep.name)}]</span> <span style="opacity:0.8;">— default</span></div>`;
                 }
             }
 

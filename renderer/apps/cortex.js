@@ -104,7 +104,7 @@ async function openBrainInspector() {
             const data = await window.fetchLocalAI(msg, systemPrompt, ollamaContext, abortController.signal);
             ollamaContext = data.context ?? null;
             const resp = data.response ?? '...';
-            thinking.innerHTML = `<span style="font-weight:bold;">AGENT:</span> ${resp}`;
+            thinking.innerHTML = `<span style="font-weight:bold;">AGENT:</span> ${window.escapeHTML(resp)}`;
             memHistory.push({ role: 'AGENT', text: resp });
             window.normieSpeak?.(resp);
             saveMemory();

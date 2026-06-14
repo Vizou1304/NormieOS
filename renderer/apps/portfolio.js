@@ -40,9 +40,17 @@ async function openPortfolio() {
 
         if (loadingEl) loadingEl.textContent = '>> FETCHING AGENT BINDINGS...';
         try {
-            const agentsRes = await fetch(`${window.API}/agents/binding/${window.currentAlphaId}`);
-            const ad = await agentsRes.json();
-            awakenedCount = ad?.binding ? 1 : 0;
+            let _bindings = window.NormieState?.bindings;
+            if (!_bindings) {
+                const _br = await fetch(`${window.API}/agents/binding/batch`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tokenIds: tokenIds.map(String) })
+                });
+                const _bd = _br.ok ? await _br.json().catch(() => ({})) : {};
+                _bindings = _bd.bindings ?? {};
+                if (window.NormieState) window.NormieState.bindings = _bindings;
+            }
+            awakenedCount = Object.keys(_bindings).length;
         } catch {}
 
         const score = (tokenIds.length * 50) + (burnCount * 40) + (totalAP * 1.5) + (Math.log1p(totalPixels) * 150);
