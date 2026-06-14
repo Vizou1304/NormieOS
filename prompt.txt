@@ -1,13 +1,22 @@
-EMERGENCE now varies correctly (good). But output is too sparse — only ~8 glyphs render instead of 80, reading as scattered icons. Fix density + connect into a constellation. Read renderer/apps/emergence.js generate().
+Let's streamline the Mainframe (Control Panel) by removing redundant tabs and unnecessary system information, keeping it ultra-minimalist.
 
-1. DRAW ALL AGENTS: confirm every one of the ~80 drawn agents stamps a glyph, not just type representatives. Log the actual placed-glyph count. If the distinctiveness threshold is killing most marks, lower it so ~50-65 glyphs survive (aim for a populated but not saturated field).
+In 'renderer/apps/controlpanel.js', please make the following surgical removals:
 
-2. CONSTELLATION MESH (the key visual): after placing all glyph centers, store them in an array. Then draw faint connection lines between centers that are within 12 cells of each other, reusing the proximity-line approach from hive.js NETWORK tab:
-   - ctx.lineWidth = 1
-   - for each pair, if distance < 12 cells: ctx.beginPath(); opacity = 0.15 * (1 - dist/12); strokeStyle rgba(72,73,75,opacity); moveTo/lineTo between the two centers; stroke()
-   - ctx.beginPath() per line (avoid path leak)
-   This turns scattered glyphs into one connected web — a unique constellation per generation.
+1. REMOVE THE 'NETWORK' TAB COMPLETELY:
+   - In the HTML template (the `body.innerHTML` block), delete the button: `<button class="window-tab-btn" data-panel="cp-network">[ NETWORK ]</button>`.
+   - In the HTML template, delete the entire `<div class="tab-content-panel" id="cp-network"> ... </div>` block.
+   - Delete the click event listener associated with `#cp-offline-box` (the offline mode toggle) further down in the file.
+   - Delete the async function that pings the API (`const pingEl = body.querySelector('#cp-ping-val'); ...`).
 
-3. Keep glyphs small (radius 2-3) so individual marks stay crisp and the lines read clearly.
+2. CLEAN UP 'SYSTEM INFO' DATA:
+   - In the `renderSysInfo` function, remove the redundant lines from the returned array so it ONLY displays the following core technical data:
+     OS, VERSION, CPU, GPU, RAM, and RES.
+   - Specifically, delete these lines from the `renderSysInfo` array:
+     `>> ${pad('UPTIME', 9)}: ${fmtUptime()}`
+     `>> ${pad('NETWORK', 9)}: ${network}`
+     `>> ${pad('WALLET', 9)}: ${walletShort}`
+     `>> ${pad('NORMIES', 9)}: ${window.allNormieIds?.length ?? '?'}`
+     `>> ${pad('PRESTIGE', 9)}: ${window.walletPrestige ?? '?'}`
+   - You can also safely delete the `fmtUptime` and `walletShort` helper variables defined just above `renderSysInfo`, as they are no longer needed.
 
-Keep stochastic sampling, decorrelated cx/cy, distinctiveness, AbortController, progressive paint, 1-bit #48494b/#e3e5e4. Output a diff and the placed-glyph count.
+Apply these changes to make the Mainframe lean and strictly focused on hardware/AI configuration.

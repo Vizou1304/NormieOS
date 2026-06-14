@@ -383,7 +383,7 @@ async function openEmergence() {
 
             // ── Consensus accumulation ──────────────────────────────────
             const accGrid        = new Float32Array(CELLS);
-            const _glyphCenters  = new Set();
+            const glyphData      = []; // { cx, cy, cells[] } per agent, for placement count + constellation
             const jitterRng = createPRNG(hashStr('jitter-' + sessionSalt));
             let totalWeight = 0;
             const agents    = [];
@@ -432,9 +432,9 @@ async function openEmergence() {
                 const _h = hashStr(tid + '-' + sessionSalt);
                 const cx = ((_h * 2654435761) >>> 0) % 40;
                 const cy = ((_h * 2246822519) >>> 0) % 40;
-                _glyphCenters.add(`${cx},${cy}`);
                 const radius    = Math.max(2, Math.min(3, 2 + Math.floor(level / 3)));
                 const agentPrng = createPRNG(hashStr(tid + '-' + sessionSalt));
+                const cells     = []; // cell indices stamped for this agent's glyph
 
                 if (type.includes('human')) {
                     // Filled disc with organic edge falloff
@@ -445,6 +445,7 @@ async function openEmergence() {
                             const nx = cx + dx, ny = cy + dy;
                             if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
                             accGrid[ny * W + nx] += weight * (0.7 + agentPrng() * 0.3) * (1 - dist / (radius + 1));
+                            cells.push(ny * W + nx);
                         }
                     }
                 } else if (type.includes('cat')) {
@@ -456,6 +457,7 @@ async function openEmergence() {
                             const nx = cx + dx, ny = cy + dy;
                             if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
                             accGrid[ny * W + nx] += weight * (0.75 + agentPrng() * 0.25);
+                            cells.push(ny * W + nx);
                         }
                     }
                 } else if (type.includes('alien')) {
@@ -468,16 +470,18 @@ async function openEmergence() {
                         const ny = Math.round(cy + Math.sin(angle) * r2);
                         if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
                         accGrid[ny * W + nx] += weight * (0.6 + agentPrng() * 0.4);
+                        cells.push(ny * W + nx);
                     }
                 } else {
                     // agent / unknown: cross/plus with falloff
                     for (let d = -radius; d <= radius; d++) {
                         const falloff = 1 - Math.abs(d) / (radius + 1);
-                        const wx = cx + d; if (wx >= 0 && wx < W) accGrid[cy * W + wx] += weight * (0.7 + agentPrng() * 0.3) * falloff;
-                        const wy = cy + d; if (wy >= 0 && wy < W) accGrid[wy * W + cx] += weight * (0.7 + agentPrng() * 0.3) * falloff;
+                        const wx = cx + d; if (wx >= 0 && wx < W) { accGrid[cy * W + wx] += weight * (0.7 + agentPrng() * 0.3) * falloff; cells.push(cy * W + wx); }
+                        const wy = cy + d; if (wy >= 0 && wy < W) { accGrid[wy * W + cx] += weight * (0.7 + agentPrng() * 0.3) * falloff; cells.push(wy * W + cx); }
                     }
                 }
 
+                glyphData.push({ cx, cy, cells });
                 agents.push({ name, type, weight });
                 counterEl.textContent = `${agents.length} GLYPHS INSCRIBED`;
 
@@ -498,7 +502,6 @@ async function openEmergence() {
             }
 
             if (!agents.length) throw new Error('no valid pixel data');
-            console.log(`[PIXEL RITUAL] distinct glyph centers: ${_glyphCenters.size} / ${agents.length} agents`);
 
             // ── BASELINE SUBTRACTION — surface group-distinctive pixels ─
             // freq[i] = fraction of total weight active at this pixel
@@ -514,27 +517,59 @@ async function openEmergence() {
             statusEl.textContent = '>> CRYSTALLIZING...';
             let maxAcc = 0;
             for (let i = 0; i < CELLS; i++) if (accGrid[i] > maxAcc) maxAcc = accGrid[i];
-            const threshold = maxAcc * 0.35;
-            const result = new Int32Array(CELLS);
-            for (let i = 0; i < CELLS; i++) result[i] = accGrid[i] >= threshold ? 1 : 0;
 
-            // ── SINGLE MAJORITY FILTER (lone-pixel noise removal) ───────
-            for (let i = 0; i < CELLS; i++) {
-                if (!result[i]) continue;
-                const x = i % W, y = (i / W) | 0;
-                let n = 0;
-                for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-                    if (!dx && !dy) continue;
-                    const nx = x + dx, ny = y + dy;
-                    if (nx >= 0 && nx < W && ny >= 0 && ny < W) n += result[ny * W + nx];
+            // Build thresholded + majority-filtered grid for a given threshold ratio
+            const buildResult = mult => {
+                const t = maxAcc * mult;
+                const r = new Int32Array(CELLS);
+                for (let i = 0; i < CELLS; i++) r[i] = accGrid[i] >= t ? 1 : 0;
+                // SINGLE MAJORITY FILTER (lone-pixel noise removal)
+                for (let i = 0; i < CELLS; i++) {
+                    if (!r[i]) continue;
+                    const x = i % W, y = (i / W) | 0;
+                    let n = 0;
+                    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                        if (!dx && !dy) continue;
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < W && ny >= 0 && ny < W) n += r[ny * W + nx];
+                    }
+                    if (n < 2) r[i] = 0;
                 }
-                if (n < 2) result[i] = 0;
+                return r;
+            };
+
+            // Lower the threshold ratio until enough individual glyphs survive (target ~50-65)
+            let result      = buildResult(0.35);
+            let placedGlyphs = glyphData.filter(g => g.cells.some(c => result[c]));
+            for (let mult = 0.32; placedGlyphs.length < 50 && mult > 0.05; mult -= 0.03) {
+                result      = buildResult(mult);
+                placedGlyphs = glyphData.filter(g => g.cells.some(c => result[c]));
             }
+            console.log(`[PIXEL RITUAL] placed glyphs: ${placedGlyphs.length} / ${agents.length} agents`);
 
             let canvasLayerCount = 0; // kept for export string compat
 
             // 5. Render + store for export
             renderCanvas(result);
+
+            // ── CONSTELLATION MESH — connect nearby glyph centers ───────
+            ctx.lineWidth = 1;
+            const MESH_DIST = 12;
+            for (let i = 0; i < placedGlyphs.length; i++) {
+                for (let j = i + 1; j < placedGlyphs.length; j++) {
+                    const dx = placedGlyphs[i].cx - placedGlyphs[j].cx;
+                    const dy = placedGlyphs[i].cy - placedGlyphs[j].cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist >= MESH_DIST) continue;
+                    const opacity = 0.15 * (1 - dist / MESH_DIST);
+                    ctx.strokeStyle = `rgba(72,73,75,${opacity.toFixed(3)})`;
+                    ctx.beginPath();
+                    ctx.moveTo(placedGlyphs[i].cx * 10 + 5, placedGlyphs[i].cy * 10 + 5);
+                    ctx.lineTo(placedGlyphs[j].cx * 10 + 5, placedGlyphs[j].cy * 10 + 5);
+                    ctx.stroke();
+                }
+            }
+
             _lastResult      = result;
             _lastAgents      = [...agents];
             _lastTotalWeight = Math.round(totalWeight * 100) / 100;
