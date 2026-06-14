@@ -426,37 +426,77 @@
         const TTL = { TRAITS: 86400000, PERSONA: 3600000, CANVAS: 900000 };
         window.TTL = TTL;
 
-        function _showFirstBootOverlay() {
+        async function _showFirstBootOverlay() {
             if (localStorage.getItem('normieOS_tour_v3')) return;
+
+            // Check if Ollama has at least one model loaded
+            let aiReady = false;
+            try {
+                const res = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(2000) });
+                if (res.ok) {
+                    const data = await res.json();
+                    aiReady = Array.isArray(data?.models) && data.models.length > 0;
+                }
+            } catch (_) { aiReady = false; }
+
             const overlay = document.createElement('div');
             overlay.id = 'tour-prompt';
             overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10000;background:rgba(72,73,75,0.88);';
             const agentLabel = window.currentAgentPersona?.name
                 ? `${window.currentAgentPersona.name} — #${window.currentAlphaId}`
                 : `AGENT #${window.currentAlphaId ?? '?'}`;
-            overlay.innerHTML = `
-                <div style="background:#48494b;color:#e3e5e4;font-family:'Courier New',Courier,monospace;border:2px solid #e3e5e4;padding:28px 36px;text-align:center;max-width:420px;width:90%;">
-                    <div style="font-size:11px;letter-spacing:2px;color:rgba(227,229,228,0.5);margin-bottom:8px;">${agentLabel}</div>
-                    <div style="font-size:14px;font-weight:bold;letter-spacing:1px;margin-bottom:24px;">Want a guided tour of the OS?</div>
-                    <div style="display:flex;gap:12px;justify-content:center;">
-                        <button id="tour-yes" style="background:transparent;color:#e3e5e4;border:2px solid #e3e5e4;font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ YES, SHOW ME ]</button>
-                        <button id="tour-no"  style="background:transparent;color:#e3e5e4;border:1px solid rgba(227,229,228,0.4);font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ SKIP — TAKE ME IN ]</button>
+
+            if (!aiReady) {
+                overlay.innerHTML = `
+                    <div style="background:#48494b;color:#e3e5e4;font-family:'Courier New',Courier,monospace;border:2px solid #e3e5e4;padding:28px 36px;text-align:center;max-width:420px;width:90%;">
+                        <div style="font-size:11px;letter-spacing:2px;color:rgba(227,229,228,0.5);margin-bottom:8px;">${agentLabel}</div>
+                        <div style="font-size:11px;letter-spacing:2px;color:#e3e5e4;margin-bottom:10px;">⚠ NEURAL ENGINE REQUIRED</div>
+                        <div style="font-size:13px;line-height:1.6;margin-bottom:24px;">A local AI model is missing.<br>Please download one to awaken your agent's persona.</div>
+                        <div style="display:flex;gap:12px;justify-content:center;">
+                            <button id="tour-mainframe" style="background:transparent;color:#e3e5e4;border:2px solid #e3e5e4;font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ OPEN MAINFRAME ]</button>
+                            <button id="tour-offline"   style="background:transparent;color:#e3e5e4;border:1px solid rgba(227,229,228,0.4);font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ PROCEED OFFLINE ]</button>
+                        </div>
                     </div>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            const dismiss = (run) => {
-                overlay.remove();
-                if (run) window.runGuidedTour();
-                else localStorage.setItem('normieOS_tour_v3', 'done');
-            };
-            overlay.querySelector('#tour-yes').addEventListener('click', () => dismiss(true));
-            overlay.querySelector('#tour-no').addEventListener('click',  () => dismiss(false));
-            ['#tour-yes','#tour-no'].forEach(sel => {
-                const b = overlay.querySelector(sel);
-                b.addEventListener('mouseenter', () => { b.style.background='#e3e5e4'; b.style.color='#48494b'; });
-                b.addEventListener('mouseleave', () => { b.style.background='transparent'; b.style.color='#e3e5e4'; });
-            });
+                `;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#tour-mainframe').addEventListener('click', () => {
+                    overlay.remove();
+                    openControlPanel?.();
+                });
+                overlay.querySelector('#tour-offline').addEventListener('click', () => {
+                    overlay.remove();
+                    localStorage.setItem('normieOS_tour_v3', 'done');
+                });
+                ['#tour-mainframe','#tour-offline'].forEach(sel => {
+                    const b = overlay.querySelector(sel);
+                    b.addEventListener('mouseenter', () => { b.style.background='#e3e5e4'; b.style.color='#48494b'; });
+                    b.addEventListener('mouseleave', () => { b.style.background='transparent'; b.style.color='#e3e5e4'; });
+                });
+            } else {
+                overlay.innerHTML = `
+                    <div style="background:#48494b;color:#e3e5e4;font-family:'Courier New',Courier,monospace;border:2px solid #e3e5e4;padding:28px 36px;text-align:center;max-width:420px;width:90%;">
+                        <div style="font-size:11px;letter-spacing:2px;color:rgba(227,229,228,0.5);margin-bottom:8px;">${agentLabel}</div>
+                        <div style="font-size:14px;font-weight:bold;letter-spacing:1px;margin-bottom:24px;">Want a guided tour of the OS?</div>
+                        <div style="display:flex;gap:12px;justify-content:center;">
+                            <button id="tour-yes" style="background:transparent;color:#e3e5e4;border:2px solid #e3e5e4;font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ YES, SHOW ME ]</button>
+                            <button id="tour-no"  style="background:transparent;color:#e3e5e4;border:1px solid rgba(227,229,228,0.4);font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;letter-spacing:2px;padding:8px 18px;cursor:pointer;">[ SKIP — TAKE ME IN ]</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                const dismiss = (run) => {
+                    overlay.remove();
+                    if (run) window.runGuidedTour();
+                    else localStorage.setItem('normieOS_tour_v3', 'done');
+                };
+                overlay.querySelector('#tour-yes').addEventListener('click', () => dismiss(true));
+                overlay.querySelector('#tour-no').addEventListener('click',  () => dismiss(false));
+                ['#tour-yes','#tour-no'].forEach(sel => {
+                    const b = overlay.querySelector(sel);
+                    b.addEventListener('mouseenter', () => { b.style.background='#e3e5e4'; b.style.color='#48494b'; });
+                    b.addEventListener('mouseleave', () => { b.style.background='transparent'; b.style.color='#e3e5e4'; });
+                });
+            }
         }
 
         // ── Awaken (post-WC) ─────────────────────────────────────────

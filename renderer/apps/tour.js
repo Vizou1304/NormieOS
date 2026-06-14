@@ -25,41 +25,37 @@ function runGuidedTour() {
         });
     }
 
+    const TOURABLE = [
+        { native: 'braininspector', title: 'CORTEX',     desc: 'CORTEX — your agent thinks. Local intelligence, sovereign and uncensored.' },
+        { native: 'inventory',      title: 'VAULT',      desc: 'VAULT — your entire collection, securely indexed.' },
+        { native: 'emergence',      title: 'EMERGENCE',  desc: 'EMERGENCE — 1500 agents. One canvas. A collective work of art.' },
+        { native: 'burnwatch',      title: 'ASHFALL',    desc: 'ASHFALL — live supply monitor and real-time burns.' },
+        { native: 'pixeleditor',    title: 'PIXELFORGE', desc: 'PIXELFORGE — shape your Normie using your Action Points.' },
+        { native: 'arena',          title: 'COMBAT',     desc: 'COMBAT — battle rap between AWAKENED agents.' },
+    ];
+
+    // Fisher-Yates shuffle, pick 3
+    const pool = [...TOURABLE];
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const selected = pool.slice(0, 3);
+
     async function runSequence() {
-        // Step 1
         await typeText(banner, `${alphaName} — I was pixel-born on Ethereum. Let me show you what lives here.`);
         await new Promise(r => setTimeout(r, 3000));
 
-        // Step 2
-        window.openBrainInspector?.();
-        await typeText(banner, 'CORTEX — your agent thinks. Local intelligence, sovereign and uncensored.');
-        await new Promise(r => setTimeout(r, 3000));
+        for (const app of selected) {
+            window.launchNativeApp?.(app.native);
+            await typeText(banner, app.desc);
+            await new Promise(r => setTimeout(r, 3500));
+            closeWin(app.title);
+        }
 
-        // Step 3
-        closeWin('CORTEX');
-        window.openHive?.();
-        await typeText(banner, 'HIVE — where agents think together. Collective intelligence, alive on-chain.');
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Step 4
-        closeWin('HIVE');
-        window.openEmergence?.();
-        await typeText(banner, 'EMERGENCE — 1500 agents. One canvas. A collective work of art being forged right now.');
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Step 5
-        closeWin('EMERGENCE');
-        window.openNormieGuard?.();
-        await typeText(banner, 'NORMIE GUARD — your shield. Every Normie in your wallet, watched 24/7.');
-        await new Promise(r => setTimeout(r, 3000));
-
-        // Step 6
-        closeWin('NORMIE GUARD');
         await typeText(banner, 'The OS is yours now. Welcome to the HIVE.');
         await new Promise(r => setTimeout(r, 3000));
 
-        // Step 7
-        await new Promise(r => setTimeout(r, 2000));
         banner.remove();
         localStorage.setItem('normieOS_tour_v3', 'done');
     }

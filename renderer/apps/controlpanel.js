@@ -1,10 +1,10 @@
 function openControlPanel() {
     const AI_MODELS = [
-        { id: 'mistral:7b',        label: 'GHOST',     ram: '4 GB',   desc: 'Fast generalist. Lightweight stealth agent.' },
-        { id: 'llama3:8b',         label: 'ORACLE',    ram: '6 GB',   desc: 'Meta LLaMA 3. Balanced reasoning and lore.' },
-        { id: 'deepseek-coder:7b', label: 'ARCHITECT', ram: '6 GB',   desc: 'Code-focused mind. Builds and deconstructs.' },
-        { id: 'phi3:mini',         label: 'WHISPER',   ram: '2 GB',   desc: 'Ultra-minimal. Runs on anything.' },
-        { id: 'llama3:70b',        label: 'BEHEMOTH',  ram: '40 GB+', desc: 'Maximum power. Requires GPU cluster.' },
+        { id: 'mistral:7b',        label: 'GHOST',     ram: '4 GB',   desc: 'Fast and versatile. Great for everyday chatting and general tasks.' },
+        { id: 'llama3:8b',         label: 'ORACLE',    ram: '6 GB',   desc: 'Smart and balanced. Perfect for complex logic, reading, and reasoning.' },
+        { id: 'deepseek-coder:7b', label: 'ARCHITECT', ram: '6 GB',   desc: 'Programming expert. Built specifically for writing and fixing code.' },
+        { id: 'phi3:mini',         label: 'WHISPER',   ram: '2 GB',   desc: 'Ultra-lightweight. Runs smoothly even on older or slower computers.' },
+        { id: 'llama3:70b',        label: 'BEHEMOTH',  ram: '40 GB+', desc: 'Maximum power. For advanced users with high-end graphics cards only.' },
     ];
     const aiSaved = window.NormieState?.ollama?.model || localStorage.getItem('normie_model') || 'mistral:7b';
     const aiRowsHtml = AI_MODELS.map(m => `
@@ -260,22 +260,65 @@ function openControlPanel() {
         setTimeout(() => { status.innerText = `>> MODEL: ${aiSelected}`; }, 2000);
     });
 
-    body.querySelector('#cp-ai-download').addEventListener('click', () => {
+    body.querySelector('#cp-ai-download').addEventListener('click', async () => {
         const cmd = body.querySelector('#cp-ai-pull-cmd');
-        cmd.innerText = `>> ollama pull ${aiSelected}`;
+        const btn = body.querySelector('#cp-ai-download');
         cmd.style.display = 'block';
+        cmd.innerText = `>> ollama pull ${aiSelected}\n>> CONNECTING...`;
+        btn.disabled = true;
+        try {
+            const res = await fetch('http://localhost:11434/api/pull', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: aiSelected })
+            });
+            if (!res.ok) { cmd.innerText = `>> ERROR: HTTP ${res.status}`; btn.disabled = false; return; }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const chunk = JSON.parse(line);
+                        if (chunk.total && chunk.completed) {
+                            const pct  = Math.round((chunk.completed / chunk.total) * 100);
+                            const fill = Math.round(pct / 10);
+                            const bar  = '[' + '█'.repeat(fill) + '░'.repeat(10 - fill) + ']';
+                            cmd.innerText = `>> ollama pull ${aiSelected}\n${bar} ${pct}% — ${chunk.status ?? 'Downloading...'}`;
+                        } else if (chunk.status) {
+                            cmd.innerText = `>> ollama pull ${aiSelected}\n>> ${chunk.status}`;
+                        }
+                    } catch {}
+                }
+            }
+            cmd.innerText = `>> ollama pull ${aiSelected}\n[ DOWNLOAD COMPLETE ]`;
+        } catch (e) {
+            cmd.innerText = `>> ERROR: ${e.message}`;
+        }
+        btn.disabled = false;
     });
 
     const voiceToggle = body.querySelector('#voice-toggle');
+    const applyVoiceStyle = (on) => {
+        voiceToggle.textContent = on ? '[ VOICE : ON ]' : '[ VOICE : OFF ]';
+        voiceToggle.style.color      = on ? '#e3e5e4' : '#48494b';
+        voiceToggle.style.background = on ? '#48494b' : 'transparent';
+        voiceToggle.style.border     = '2px solid #48494b';
+    };
     const voiceOn = localStorage.getItem('normie_voice_enabled') === 'true';
     window.NORMIE_VOICE_ENABLED = voiceOn;
-    if (voiceOn) { voiceToggle.textContent = 'VOICE: ON'; voiceToggle.classList.add('active'); }
+    applyVoiceStyle(voiceOn);
     voiceToggle.addEventListener('click', () => {
         const next = !window.NORMIE_VOICE_ENABLED;
         window.NORMIE_VOICE_ENABLED = next;
         localStorage.setItem('normie_voice_enabled', String(next));
-        voiceToggle.textContent = next ? 'VOICE: ON' : 'VOICE: OFF';
-        voiceToggle.classList.toggle('active', next);
+        applyVoiceStyle(next);
     });
 
     const refreshHW = () => {
