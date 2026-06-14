@@ -37,8 +37,6 @@ async function openEmergence() {
     const burnsSet     = (tid, v) => lsSet(`burns_${tid}`, v);
     const canvpxGet    = tid => lsGet(`canvaspx_${tid}`);
     const canvpxSet    = (tid, v) => lsSet(`canvaspx_${tid}`, v);
-    const canvInfoGet  = tid => lsGet(`canvinfo_${tid}`);
-    const canvInfoSet  = (tid, v) => lsSet(`canvinfo_${tid}`, v);
 
     // ── Zone mask: 1600-element Uint8Array, 1 = contribute ────────
     const buildZoneMask = rawType => {
@@ -79,11 +77,11 @@ async function openEmergence() {
                 <span id="em-progress-label" style="font-size:10px;letter-spacing:1px;opacity:0.7;white-space:nowrap;">0 / 1500</span>
             </div>
         </div>
-        <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:12px 0 8px;">
+        <div style="flex:1;overflow-y:hidden;position:relative;display:flex;flex-direction:column;align-items:center;padding:12px 0 8px;">
             <div id="em-status" style="font-size:var(--font-size-log);letter-spacing:1px;line-height:1.6;padding:2px 0;margin-bottom:6px;min-height:16px;">
                 >> FORGING PIXELS... 0/50
             </div>
-            <div id="em-deliberation" style="font-size:var(--font-size-log);letter-spacing:0.5px;text-align:left;width:400px;min-height:36px;margin-bottom:6px;line-height:1.6;white-space:pre-wrap;"></div>
+            <div id="em-deliberation" style="font-size:var(--font-size-log);letter-spacing:0.5px;text-align:left;width:400px;height:50px;overflow:hidden;margin-bottom:6px;line-height:1.6;white-space:pre-wrap;"></div>
             <div style="position:relative;display:inline-block;flex-shrink:0;">
                 <canvas id="em-canvas" width="400" height="400"
                     style="border:2px solid #48494b;image-rendering:pixelated;display:block;"></canvas>
@@ -92,7 +90,7 @@ async function openEmergence() {
             <div style="margin-top:7px;font-size:10px;opacity:0.65;letter-spacing:0.5px;text-align:center;">
                 HUMAN — center &nbsp;|&nbsp; CAT — top &nbsp;|&nbsp; ALIEN — edges &nbsp;|&nbsp; AGENT — core
             </div>
-            <div id="em-contributors" style="margin-top:8px;font-size:10px;opacity:0.7;text-align:center;max-width:460px;padding:0 14px;line-height:1.6;"></div>
+            <div id="em-contributors" style="position:absolute;bottom:10px;width:90%;left:5%;font-size:10px;opacity:0.7;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1.6;"></div>
         </div>
         <div style="display:flex;gap:6px;padding:8px 14px;border-top:1px solid #48494b;flex-shrink:0;background:#e3e5e4;">
             <button id="em-save" style="flex:1;border:2px solid #48494b;padding:5px 0;font-family:'Courier New',monospace;font-size:10px;background:transparent;color:#48494b;cursor:pointer;letter-spacing:1px;transition:none;">[ SAVE EMERGENCE ]</button>
@@ -143,6 +141,37 @@ async function openEmergence() {
         return ((t ^ t >>> 14) >>> 0) / 4294967296;
     };
     const hashStr = s => s.split('').reduce((a, c) => ((a << 5) - a) + c.charCodeAt(0) | 0, 0);
+
+    // ── Lore glyph matrices — [dx,dy] offsets from anchor [0,0] ────
+    const GLYPH_MATRICES = {
+        human: [ // Fractal Pulse 5x5
+            [-1,-2],[1,-2],
+            [-2,-1],[-1,-1],[0,-1],[1,-1],[2,-1],
+            [-1,0],[0,0],[1,0],
+            [-2,1],[-1,1],[0,1],[1,1],[2,1],
+            [-1,2],[1,2],
+        ],
+        cat: [ // Multi-Layered Shield 4x4
+            [-1,-1],[0,-1],[1,-1],[2,-1],
+            [-1,0],[2,0],
+            [-1,1],[1,1],[2,1],
+            [-1,2],[0,2],[1,2],[2,2],
+        ],
+        alien: [ // Quantum Entanglement 5x5
+            [-2,-2],[2,-2],
+            [-1,-1],[1,-1],
+            [0,0],
+            [-1,1],[1,1],
+            [-2,2],[2,2],
+        ],
+        agent: [ // Prismatic Nexus 5x5
+            [0,-2],
+            [-1,-1],[1,-1],
+            [-2,0],[2,0],
+            [-1,1],[1,1],
+            [0,2],
+        ],
+    };
 
     // ── Fetch helpers: rate-limit safe, 1200ms delay, 429 retry ──
     const delay = (ms = 1200) => new Promise(r => setTimeout(r, ms));
@@ -412,73 +441,40 @@ async function openEmergence() {
                 const burnBonus = burnRaw > 0 ? Math.pow(1.25, burnRaw) - 1 : 0;
                 const isCustomized = (window.NormieState?.alpha?.id === tid && window.NormieState?.alpha?.canvas?.customized === true) || identity?.customized === true;
 
-                let prestige = 0, level = 1;
+                let prestige = 0;
                 const cachedMeta = window.NormieState?.allMetadata?.[String(tid)];
                 if (cachedMeta?.attributes) {
                     prestige = calcPrestige(cachedMeta.attributes);
-                    level    = Number(cachedMeta.attributes.find(at => String(at.trait_type ?? '').toLowerCase() === 'level')?.value) || 1;
-                } else {
-                    let ci = canvInfoGet(tid);
-                    if (!ci) ci = await fetchJSON(`${API}/normie/${tid}/canvas/info`, null, v => canvInfoSet(tid, v));
-                    level = Number(ci?.level ?? ci?.Level ?? 1);
                 }
 
                 const jitter = 0.85 + jitterRng() * 0.3;
                 const weight = (1 + burnBonus + (prestige / 200) + (isCustomized ? 0.5 : 0)) * jitter;
                 totalWeight += weight;
 
-                // ── ON-CHAIN GLYPH STAMP ─────────────────────────────────
+                // ── ON-CHAIN GLYPH STAMP — pure lore binary matrices ─────
                 // Two independent Knuth hashes — decorrelated so cx and cy spread uniformly
                 const _h = hashStr(tid + '-' + sessionSalt);
                 const cx = ((_h * 2654435761) >>> 0) % 40;
                 const cy = ((_h * 2246822519) >>> 0) % 40;
-                const radius    = Math.max(2, Math.min(3, 2 + Math.floor(level / 3)));
                 const agentPrng = createPRNG(hashStr(tid + '-' + sessionSalt));
                 const cells     = []; // cell indices stamped for this agent's glyph
 
-                if (type.includes('human')) {
-                    // Filled disc with organic edge falloff
-                    for (let dy = -radius; dy <= radius; dy++) {
-                        for (let dx = -radius; dx <= radius; dx++) {
-                            const dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist > radius) continue;
-                            const nx = cx + dx, ny = cy + dy;
-                            if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
-                            accGrid[ny * W + nx] += weight * (0.7 + agentPrng() * 0.3) * (1 - dist / (radius + 1));
-                            cells.push(ny * W + nx);
-                        }
-                    }
-                } else if (type.includes('cat')) {
-                    // Ring: only cells at the edge band
-                    for (let dy = -radius; dy <= radius; dy++) {
-                        for (let dx = -radius; dx <= radius; dx++) {
-                            const dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist > radius || dist < radius - 1.5) continue;
-                            const nx = cx + dx, ny = cy + dy;
-                            if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
-                            accGrid[ny * W + nx] += weight * (0.75 + agentPrng() * 0.25);
-                            cells.push(ny * W + nx);
-                        }
-                    }
-                } else if (type.includes('alien')) {
-                    // Scatter cluster: random points within radius
-                    const pts = Math.max(6, Math.floor(radius * radius * 2));
-                    for (let p = 0; p < pts; p++) {
-                        const angle = agentPrng() * Math.PI * 2;
-                        const r2    = agentPrng() * radius;
-                        const nx = Math.round(cx + Math.cos(angle) * r2);
-                        const ny = Math.round(cy + Math.sin(angle) * r2);
-                        if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
-                        accGrid[ny * W + nx] += weight * (0.6 + agentPrng() * 0.4);
-                        cells.push(ny * W + nx);
-                    }
-                } else {
-                    // agent / unknown: cross/plus with falloff
-                    for (let d = -radius; d <= radius; d++) {
-                        const falloff = 1 - Math.abs(d) / (radius + 1);
-                        const wx = cx + d; if (wx >= 0 && wx < W) { accGrid[cy * W + wx] += weight * (0.7 + agentPrng() * 0.3) * falloff; cells.push(cy * W + wx); }
-                        const wy = cy + d; if (wy >= 0 && wy < W) { accGrid[wy * W + cx] += weight * (0.7 + agentPrng() * 0.3) * falloff; cells.push(wy * W + cx); }
-                    }
+                let matrix, behaviorType;
+                if (type.includes('human'))      { matrix = GLYPH_MATRICES.human; behaviorType = 'human'; }
+                else if (type.includes('cat'))   { matrix = GLYPH_MATRICES.cat;   behaviorType = 'cat';   }
+                else if (type.includes('alien')) { matrix = GLYPH_MATRICES.alien; behaviorType = 'alien'; }
+                else                              { matrix = GLYPH_MATRICES.agent; behaviorType = 'agent'; }
+
+                // Chaos erosion: higher chaos_factor → more pixels skipped, battle-worn glyph
+                const chaos_factor  = typeBehaviorMap.get(behaviorType)?.chaos_factor ?? 0.3;
+                const erosionChance = chaos_factor * 0.4;
+
+                for (const [dx, dy] of matrix) {
+                    if (agentPrng() < erosionChance) continue; // eroded into nothing
+                    const nx = cx + dx, ny = cy + dy;
+                    if (nx < 0 || nx >= W || ny < 0 || ny >= W) continue;
+                    accGrid[ny * W + nx] += weight; // full weight, no falloff
+                    cells.push(ny * W + nx);
                 }
 
                 glyphData.push({ cx, cy, cells });
