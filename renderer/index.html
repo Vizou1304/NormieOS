@@ -352,6 +352,7 @@
                 } catch (_) {}
                 wcClient = null;
             }
+            clearInterval(_ollamaIntervalId);
             window.currentWalletAddress = null;
             updateStatusBits(0, 0);
             document.getElementById('boot-terminal').innerText = '';
@@ -755,7 +756,7 @@
             }
         };
         updateOllama();
-        setInterval(updateOllama, 30000);
+        const _ollamaIntervalId = setInterval(updateOllama, 30000);
 
         // Bypass toggle
         const _ollamaEl = document.getElementById('systray-ollama');
@@ -840,7 +841,6 @@
             'CORTEX':                     'Inspect your Alpha\'s on-chain persona and chat via Ollama.',
             'AWAKENING':                  'ERC-8004 awakening — register your Normie as an autonomous agent.',
             'HIVE':                       'Multi-agent conversation — 3 random AWAKENED agents debate a topic via Ollama.',
-            'SOLITAIRE':                  'Klondike Solitaire — 7 columns, draw 1. Normies pixel card backs.',
             'PIXELFORGE':                 '40x40 pixel editor — modify your Normie\'s bitmap using AP.',
             'SHELL':                      'Custom terminal for NormiesOS. Type /help to see all available commands.',
             'NEXUS':                      'Directory of 44+ community apps in the Normies ecosystem.',
@@ -1195,8 +1195,6 @@
             braininspector: `<rect x="4" y="4" width="8" height="8" fill="currentColor"/><rect x="1" y="5" width="3" height="2" fill="currentColor"/><rect x="1" y="9" width="3" height="2" fill="currentColor"/><rect x="12" y="5" width="3" height="2" fill="currentColor"/><rect x="12" y="9" width="3" height="2" fill="currentColor"/><rect x="5" y="1" width="2" height="3" fill="currentColor"/><rect x="9" y="1" width="2" height="3" fill="currentColor"/><rect x="5" y="12" width="2" height="3" fill="currentColor"/><rect x="9" y="12" width="2" height="3" fill="currentColor"/>`,
             // AWAKENING — oeil
             awakening: `<rect x="5" y="3" width="6" height="2" fill="currentColor"/><rect x="3" y="5" width="2" height="2" fill="currentColor"/><rect x="11" y="5" width="2" height="2" fill="currentColor"/><rect x="2" y="7" width="2" height="2" fill="currentColor"/><rect x="12" y="7" width="2" height="2" fill="currentColor"/><rect x="3" y="9" width="2" height="2" fill="currentColor"/><rect x="11" y="9" width="2" height="2" fill="currentColor"/><rect x="5" y="11" width="6" height="2" fill="currentColor"/><rect x="6" y="6" width="4" height="4" fill="currentColor"/>`,
-            // SOLITAIRE — carte à jouer
-            solitaire: `<rect x="2" y="1" width="12" height="14" fill="none" stroke="currentColor" stroke-width="1"/><text x="4" y="9" font-family="Courier New" font-size="7" fill="currentColor">A</text><text x="4" y="14" font-family="Courier New" font-size="6" fill="currentColor">♠</text>`,
             // HIVE — 3 noeuds connectés
             hive: `<rect x="6" y="1" width="4" height="4" fill="currentColor"/><rect x="1" y="11" width="4" height="4" fill="currentColor"/><rect x="11" y="11" width="4" height="4" fill="currentColor"/><rect x="7" y="5" width="2" height="3" fill="currentColor"/><rect x="4" y="9" width="3" height="2" fill="currentColor"/><rect x="9" y="9" width="3" height="2" fill="currentColor"/><rect x="4" y="7" width="2" height="2" fill="currentColor"/><rect x="10" y="7" width="2" height="2" fill="currentColor"/>`,
             // PIXELWERK — grille pixels
@@ -1220,11 +1218,13 @@
             // RETRO — cartouche de jeu
             retro: `<rect x="2" y="0" width="12" height="1" fill="currentColor"/><rect x="1" y="1" width="14" height="1" fill="currentColor"/><rect x="0" y="2" width="16" height="10" fill="currentColor"/><rect x="0" y="12" width="4" height="4" fill="currentColor"/><rect x="12" y="12" width="4" height="4" fill="currentColor"/><rect x="4" y="13" width="8" height="3" fill="currentColor"/><rect x="3" y="4" width="4" height="5" fill="none"/><rect x="3" y="4" width="4" height="1" fill="white"/><rect x="3" y="8" width="4" height="1" fill="white"/><rect x="3" y="4" width="1" height="5" fill="white"/><rect x="6" y="4" width="1" height="5" fill="white"/><rect x="9" y="5" width="4" height="3" fill="white"/>`,
             // NORMINESWEEPER — bombe pixel art
-            minesweeper: `<rect x="9" y="0" width="1" height="1" fill="currentColor"/><rect x="8" y="1" width="2" height="1" fill="currentColor"/><rect x="8" y="2" width="1" height="2" fill="currentColor"/><rect x="5" y="3" width="6" height="1" fill="currentColor"/><rect x="4" y="4" width="8" height="1" fill="currentColor"/><rect x="3" y="5" width="10" height="6" fill="currentColor"/><rect x="4" y="11" width="8" height="1" fill="currentColor"/><rect x="5" y="12" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="2" height="2" fill="currentColor"/><rect x="13" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="13" width="2" height="2" fill="currentColor"/>`,
+            minesweeper: `<rect x="8" y="0" width="1" height="1" fill="currentColor"/><rect x="7" y="1" width="1" height="1" fill="currentColor"/><rect x="7" y="2" width="2" height="1" fill="currentColor"/><rect x="5" y="3" width="6" height="1" fill="currentColor"/><rect x="4" y="4" width="8" height="1" fill="currentColor"/><rect x="3" y="5" width="10" height="6" fill="currentColor"/><rect x="4" y="11" width="8" height="1" fill="currentColor"/><rect x="5" y="12" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="2" height="2" fill="currentColor"/><rect x="13" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="13" width="2" height="2" fill="currentColor"/>`,
             // TOOLS — wrench pixel art
             tools: `<rect x="11" y="0" width="3" height="1" fill="currentColor"/><rect x="12" y="1" width="2" height="1" fill="currentColor"/><rect x="10" y="2" width="4" height="2" fill="currentColor"/><rect x="9" y="4" width="3" height="2" fill="currentColor"/><rect x="7" y="5" width="3" height="2" fill="currentColor"/><rect x="5" y="7" width="3" height="2" fill="currentColor"/><rect x="2" y="9" width="4" height="1" fill="currentColor"/><rect x="1" y="10" width="4" height="2" fill="currentColor"/><rect x="0" y="11" width="2" height="3" fill="currentColor"/><rect x="2" y="12" width="4" height="2" fill="currentColor"/><rect x="4" y="13" width="2" height="2" fill="currentColor"/>`,
             // NAVIGATOR — globe symétrique 14x14 centré dans 16x16
             navigateur: `<rect x="5" y="1" width="6" height="1" fill="currentColor"/><rect x="3" y="2" width="2" height="1" fill="currentColor"/><rect x="11" y="2" width="2" height="1" fill="currentColor"/><rect x="2" y="3" width="1" height="2" fill="currentColor"/><rect x="13" y="3" width="1" height="2" fill="currentColor"/><rect x="1" y="5" width="1" height="6" fill="currentColor"/><rect x="14" y="5" width="1" height="6" fill="currentColor"/><rect x="2" y="11" width="1" height="2" fill="currentColor"/><rect x="13" y="11" width="1" height="2" fill="currentColor"/><rect x="3" y="13" width="2" height="1" fill="currentColor"/><rect x="11" y="13" width="2" height="1" fill="currentColor"/><rect x="5" y="14" width="6" height="1" fill="currentColor"/><rect x="1" y="7" width="14" height="2" fill="currentColor"/><rect x="7" y="1" width="2" height="14" fill="currentColor"/>`,
+            // EMERGENCE — cluster neural en spirale fibonacci
+            emergence: `<rect x="7" y="7" width="2" height="2" fill="currentColor"/><rect x="7" y="4" width="2" height="2" fill="currentColor"/><rect x="7" y="10" width="2" height="2" fill="currentColor"/><rect x="4" y="7" width="2" height="2" fill="currentColor"/><rect x="10" y="7" width="2" height="2" fill="currentColor"/><rect x="4" y="4" width="1" height="1" fill="currentColor"/><rect x="11" y="4" width="1" height="1" fill="currentColor"/><rect x="4" y="11" width="1" height="1" fill="currentColor"/><rect x="11" y="11" width="1" height="1" fill="currentColor"/><rect x="7" y="1" width="2" height="1" fill="currentColor"/><rect x="7" y="14" width="2" height="1" fill="currentColor"/><rect x="1" y="7" width="1" height="2" fill="currentColor"/><rect x="14" y="7" width="1" height="2" fill="currentColor"/><rect x="2" y="3" width="1" height="1" fill="currentColor"/><rect x="13" y="5" width="1" height="1" fill="currentColor"/><rect x="12" y="13" width="1" height="1" fill="currentColor"/><rect x="3" y="12" width="1" height="1" fill="currentColor"/>`,
         };
 
         // ── NATIVE APPS DATA ─────────────────────────────────────────
@@ -1251,7 +1251,6 @@
             { native:'notepad',       name:'NOTEPAD',    icon:'notepad',       desc:'notepad',                 section:'CORE'  },
             { native:'trash',         name:'TRASH',      icon:'trash',         desc:'trash',                   section:'CORE'  },
             { native:'vinyl',         name:'VINYL',      icon:'vinyl',         desc:'music player',            section:'COMMUNITY' },
-            { native:'solitaire',     name:'SOLITAIRE',      icon:'solitaire',     desc:'card game',               section:'GAMES' },
             { native:'retro',         name:'RETRO',          icon:'retro',         desc:'retro emulator',          section:'GAMES' },
             { native:'minesweeper',   name:'NORMINESWEEPER', icon:'minesweeper',   desc:'pixel minesweeper',       section:'GAMES' },
         ];
@@ -1426,7 +1425,6 @@
             braininspector:() => window.openBrainInspector?.(),
             awakening:     () => openAwakening(),
             hive:          () => window.openHive?.(),
-            solitaire:     () => window.openSolitaire?.(),
             retro:         () => window.openRetro?.(),
             minesweeper:   () => window.openMinesweeper?.(),
             terminal:      () => openTerminal(),
@@ -1629,7 +1627,6 @@
     <script src="apps/hive.js"></script>
     <script src="apps/combat.js"></script>
     <script src="apps/cortex.js"></script>
-    <script src="apps/solitaire.js"></script>
     <script src="apps/retro.js"></script>
     <script src="apps/games/minesweeper.js"></script>
     <script src="apps/tour.js"></script>

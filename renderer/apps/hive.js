@@ -786,3 +786,4 @@ async function openHive() {
         addLine('');
     });
 }
+window.openHive = openHive;

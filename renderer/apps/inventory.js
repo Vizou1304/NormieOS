@@ -83,16 +83,21 @@ async function openInventory() {
         selSort.addEventListener('change', renderGrid);
         renderGrid();
 
-        await Promise.all(items.map(async (item) => {
-            try {
-                const r = await fetch(`${window.API}/agents/binding/${item.id}`);
-                const data = await r.json();
-                item.status = data?.binding ? 'AWAKENED' : 'DORMANT';
-            } catch {
-                item.status = 'DORMANT';
-            }
-            renderGrid();
-        }));
+        try {
+            const batchRes = await fetch(`${window.API}/agents/binding/batch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tokenIds: items.map(i => i.id) })
+            });
+            const batchData = batchRes.ok ? await batchRes.json().catch(() => ({})) : {};
+            const bindings = batchData.bindings ?? {};
+            items.forEach(item => {
+                item.status = bindings[String(item.id)] ? 'AWAKENED' : 'DORMANT';
+            });
+        } catch {
+            items.forEach(item => { item.status = 'DORMANT'; });
+        }
+        renderGrid();
 
     } catch (err) {
         body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
