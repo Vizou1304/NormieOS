@@ -1,18 +1,13 @@
-Read renderer/apps/emergence.js generate(). The diagnostic confirmed: accumulating raw avatar bitmaps always yields the average Normie face. Replace WHAT is accumulated. Keep the stochastic sampling, distinctiveness, threshold, cleanup, AbortController, progressive paint, and 1-bit render.
+EMERGENCE now varies correctly (good). But output is too sparse — only ~8 glyphs render instead of 80, reading as scattered icons. Fix density + connect into a constellation. Read renderer/apps/emergence.js generate().
 
-POOL FIX:
-- Paginate /agents/list to build a pool of up to 500 agents (limit=100 across pages/cursors), cache as 'agents_pool'. Draw 80 via the existing weighted sampler.
+1. DRAW ALL AGENTS: confirm every one of the ~80 drawn agents stamps a glyph, not just type representatives. Log the actual placed-glyph count. If the distinctiveness threshold is killing most marks, lower it so ~50-65 glyphs survive (aim for a populated but not saturated field).
 
-ACCUMULATION FIX — stop stacking faces, deposit per-agent on-chain glyphs:
-For each drawn agent, derive a deterministic glyph from its on-chain data, NOT its avatar bitmap:
-- seed = hashStr(tokenId + '-' + sessionSalt)
-- prng = createPRNG(seed)
-- center cell: cx,cy derived from (tokenId hash) mod 40 — each agent occupies a distinct region
-- glyph size/density driven by traits: radius = clamp(2 + level/3, 2, 6); intensity = weight (prestige+burns based)
-- shape style chosen by agent type: human=filled disc, cat=ring, alien=scatter cluster, agent=cross/plus
-- stamp the glyph into accGrid at (cx,cy) with intensity, using prng for organic edge variation
-This way each agent contributes a distinct mark at a distinct location; 80 different agents = 80 different marks = a unique composition every generation.
+2. CONSTELLATION MESH (the key visual): after placing all glyph centers, store them in an array. Then draw faint connection lines between centers that are within 12 cells of each other, reusing the proximity-line approach from hive.js NETWORK tab:
+   - ctx.lineWidth = 1
+   - for each pair, if distance < 12 cells: ctx.beginPath(); opacity = 0.15 * (1 - dist/12); strokeStyle rgba(72,73,75,opacity); moveTo/lineTo between the two centers; stroke()
+   - ctx.beginPath() per line (avoid path leak)
+   This turns scattered glyphs into one connected web — a unique constellation per generation.
 
-After accumulation: keep freq-based distinctiveness dampen/boost, normalize, threshold (~30-40% fill), one majority-filter cleanup pass, render.
+3. Keep glyphs small (radius 2-3) so individual marks stay crisp and the lines read clearly.
 
-Emit emergence:complete with agentCount. Output a diff and tell me the threshold value you used.
+Keep stochastic sampling, decorrelated cx/cy, distinctiveness, AbortController, progressive paint, 1-bit #48494b/#e3e5e4. Output a diff and the placed-glyph count.

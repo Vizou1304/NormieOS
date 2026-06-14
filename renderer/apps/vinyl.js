@@ -12,10 +12,6 @@ function openVinyl() {
     body.style.fontFamily     = "'Courier New', Courier, monospace";
     body.style.overflowY      = 'auto';
 
-    const tracks = Array.from({ length: 11 }, (_, i) =>
-        `<div>${String(i + 1).padStart(2, '0')}. TRACK ${String(i + 1).padStart(2, '0')}</div>`
-    ).join('');
-
     body.innerHTML = `
         <div class="vinyl-disc" id="vinyl-disc">
             <div class="vinyl-hole"></div>
@@ -25,21 +21,11 @@ function openVinyl() {
             <div style="font-size:12px;letter-spacing:1px;margin-top:4px;">NORMIES AWAKENING</div>
             <div style="font-size:11px;opacity:0.65;margin-top:2px;">11 TRACKS</div>
         </div>
-        <div class="vinyl-tracklist">${tracks}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-            <button id="vinyl-play"    class="cp-action-btn">[ &#9654; PLAY ]</button>
-            <button id="vinyl-stop"    class="cp-action-btn">[ &#9632; STOP ]</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:20px;">
             <button id="vinyl-spotify" class="cp-action-btn">[ SPOTIFY ]</button>
             <button id="vinyl-apple"   class="cp-action-btn">[ APPLE MUSIC ]</button>
         </div>`;
 
-    const disc = body.querySelector('#vinyl-disc');
-    body.querySelector('#vinyl-play').addEventListener('click', () => {
-        disc.style.animationPlayState = 'running';
-    });
-    body.querySelector('#vinyl-stop').addEventListener('click', () => {
-        disc.style.animationPlayState = 'paused';
-    });
     body.querySelector('#vinyl-spotify').addEventListener('click', () => {
         window.open('https://open.spotify.com/search/Dopemind%20Normies%20Awakening');
     });
