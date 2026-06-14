@@ -27,26 +27,17 @@ export async function fetchLocalAI(userMsg, systemPrompt, context = null, signal
     };
     if (context) payload.context = context;
 
-    try {
-        console.log('SENDING:', userMsg);
-        const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            ...(signal ? { signal } : {})
-        });
-        if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
-        const data = await res.json();
-        console.log('RAW RESPONSE:', data);
-        return data;
-    } catch (err) {
-        console.log('ERROR:', err);
-        throw err;
-    }
+    const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        ...(signal ? { signal } : {})
+    });
+    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+    return await res.json();
 }
 
 export async function applyAgentStatus(alphaId, statusEl) {
-    console.log('applyAgentStatus called for:', alphaId);
     if (!statusEl) return;
     try {
         const data = await fetchAgentBinding(alphaId);

@@ -106,7 +106,7 @@ const _openAppContainer = async (tool, endpoint, wallet) => {
         }
     } catch (err) {
         if (err.name === 'AbortError') return;
-        cBody.innerHTML = `<div style="padding:20px;"><div style="font-weight:bold;margin-bottom:6px;">CONNECTION FAILED</div><div style="opacity:0.6;font-size:10px;">${err.message}</div><div style="margin-top:8px;opacity:0.6;font-size:10px;">${url}</div></div>`;
+        cBody.innerHTML = `<div style="padding:20px;"><div style="font-weight:bold;margin-bottom:6px;">CONNECTION FAILED</div><div style="opacity:0.6;font-size:10px;">${window.escapeHTML(err.message)}</div><div style="margin-top:8px;opacity:0.6;font-size:10px;">${url}</div></div>`;
     }
 };
 
@@ -258,8 +258,8 @@ const _deniedHtml = (tool, detail = '') => `
         <div style="font-weight:bold;letter-spacing:2px;margin-bottom:12px;">ACCESS DENIED</div>
         <div style="opacity:0.65;font-size:10px;margin-bottom:6px;">You are not a holder of the required NFT.</div>
         ${detail ? `<div style="opacity:0.6;font-size:10px;margin-bottom:8px;">${detail}</div>` : ''}
-        <div style="opacity:0.6;font-size:10px;">Tool: ${tool.name ?? '#'+tool.id}</div>
-        ${tool.accessPredicate ? `<div style="opacity:0.6;font-size:10px;margin-top:3px;">predicate: ${tool.accessPredicate.slice(0,10)}...${tool.accessPredicate.slice(-4)}</div>` : ''}
+        <div style="opacity:0.6;font-size:10px;">Tool: ${window.escapeHTML(tool.name ?? '#'+tool.id)}</div>
+        ${tool.accessPredicate ? `<div style="opacity:0.6;font-size:10px;margin-top:3px;">predicate: ${window.escapeHTML(tool.accessPredicate.slice(0,10))}...${window.escapeHTML(tool.accessPredicate.slice(-4))}</div>` : ''}
         <div style="margin-top:16px;"><button onclick="this.closest('.os-window')?.querySelector('.window-close')?.click()" style="border:2px solid #48494b;padding:5px 14px;font-family:'Courier New',monospace;font-size:10px;background:transparent;cursor:pointer;letter-spacing:1px;transition:none;">[ CLOSE ]</button></div>
     </div>`;
 
@@ -484,6 +484,7 @@ function openTools() {
 
             for (let i = 1; i <= Math.min(total, 60); i++) {
                 if (!body.closest('.os-window')) break;
+                if (i > 1) await new Promise(r => setTimeout(r, 200));
                 let config, manifest;
                 try {
                     config   = await reg.getToolConfig(i, chain);
@@ -511,7 +512,7 @@ function openTools() {
             _renderGrid();
         } catch (err) {
             if (!tools.length) {
-                gridEl.innerHTML = `<div style="padding:14px;font-size:10px;"><div style="font-weight:bold;margin-bottom:6px;letter-spacing:1px;">REGISTRY UNREACHABLE</div><div style="opacity:0.6;">${err.message}</div></div>`;
+                gridEl.innerHTML = `<div style="padding:14px;font-size:10px;"><div style="font-weight:bold;margin-bottom:6px;letter-spacing:1px;">REGISTRY UNREACHABLE</div><div style="opacity:0.6;">${window.escapeHTML(err.message)}</div></div>`;
             }
         } finally {
             window._nexusState.loading[chain] = false;

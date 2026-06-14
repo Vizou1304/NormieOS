@@ -1,4 +1,49 @@
-REMOVE 'GUARD' FROM THE START MENU:
-   - Locate the Start Menu app grid generation logic or the native apps registration array (likely in 'renderer/index.html' or your main OS script).
-   - Find the configuration, array object, or hardcoded HTML block for the 'GUARD' app (its key is likely 'normieguard' or 'guard').
-   - Completely remove it so the shield icon and the "GUARD" label no longer appear in the Start Menu grid.
+Read CLAUDE.md first. Silently.
+This is the final pre-ship patch pass. Apply every fix below surgically. grep -n first, diffs/patches only, never rewrite a whole file. Confirm each numbered item with file:line. Do NOT touch the dev-skip button or any dev wallet address (I handle those last). Do NOT touch MarketPulse (already handled).
+
+CRITICAL ESCAPING RULE — escape the DATA, never the TEMPLATE:
+Only wrap interpolated dynamic variables (agent name, Ollama text, err.message, tool name, user input) in escapeHTML(). Leave all static HTML tags (<span>, <div>, markup) intact.
+WRONG: el.innerHTML = escapeHTML(`<span>${x}</span>`)
+RIGHT: el.innerHTML = `<span>${escapeHTML(x)}</span>`
+First, confirm window.escapeHTML exists and is global (defined in index.html). If it's not on window, expose it as window.escapeHTML so every app file can use it.
+
+BATCH A — XSS (the ship-blockers):
+1. index.html showSpeechBubble (~1671-1673): escape the agent persona name and Ollama text before innerHTML.
+2. index.html _renderLogPanel (~1619-1625): escape e.message before innerHTML.
+3. index.html first-boot tour overlay (~445-478, lines ~450 and ~476): escape currentAgentPersona.name (agentLabel) before innerHTML.
+4. cortex.js addMsg (~80,98,114): escape user chat input and err.message. Use escapeHTML on the interpolated text only; keep the <span> role wrapper intact. Also escape replayed memHistory entries (m.role, m.text) at render time.
+5. tools.js (~109,514): escape err.message before innerHTML.
+6. tools.js _deniedHtml (~256-264): escape tool.name and tool.accessPredicate before innerHTML.
+7. awakening.js (~57): escape agent name from metadata.
+8. combat.js (~173,191,208,220): escape fighter names.
+9. burnwatch.js (~51,58): the onclick string interpolates API values (commitId, time, pixels) directly — a stray quote breaks out. Refactor to data-* attributes + addEventListener (the pattern already used elsewhere in this same file). Do NOT just escape — use data attributes.
+10. alphaswitch.js (~17): onclick="window.switchAlpha('${id}')" — id is numeric so low risk, but convert to data-id + addEventListener for consistency.
+
+BATCH B — GUARD reachable + interval leaks:
+11. GUARD was intentionally removed. Clean up all leftovers instead of re-adding it:
+- Remove the GUARD entry from APP_LAUNCHERS (~1537)
+- Remove the normieguard icon from SVG_ICONS (~1314)
+- Remove the guard.js <script> include from index.html if present
+- Remove guard.js from the project (or confirm it's no longer loaded anywhere)
+- Update CLAUDE.md: remove GUARD from the app list / ✅ status so the doc matches reality
+Confirm GUARD is fully gone with: grep -rn "guard\|Guard\|GUARD\|normieguard" renderer/ index.html — should return zero functional references.
+12. terminal.js (~154-159): the /matrix canvas setInterval (30ms) is only cleared by a 10s setTimeout. Clear it on .window-close too so closing SHELL early doesn't leak it.
+13. minesweeper.js (~135-138, ~327): the timer interval is only cleared on next open. Clear it on .window-close.
+
+BATCH C — remove dead/risky external calls:
+14. terminal.js (~117): REMOVE the /gas command entirely (Etherscan gasoracle keyless call — rejected/throttled). Remove the command and its handler/help entry.
+15. tools.js _loadChain (~485): no inter-request delay (throttle only exists in loadAllTools at ~171). Across BASE+ETH this can burst past 60/min. Apply the same throttle inside _loadChain or share one rate-limited queue.
+
+BATCH D — silent catches feeding fake data (same class as the score-0 bug):
+16. portfolio.js (~39,54): empty catch leaves burnCount/awakenedCount at 0 on failure, shown in LEDGER as if real. Use a null/error state, display "—" or "ERR", not a confident 0.
+17. burnwatch.js (~14): swallowed catch falls back to "—" masking an API outage. Distinguish "no data" from "fetch failed".
+18. walletorch.js (~52): swallowed catch sets w.delegated=false on unknown — make it tri-state (unknown/true/false) so an unknown delegation doesn't read as "not delegated".
+
+BATCH E — handler dedup:
+19. guard.js (~64-71): openNormieGuard() calls window._normieGuard.onAlert(cb) on every open with no dedup, stacking duplicate handlers. Guard with a window._normieGuardUIHooked flag or store/return an unsubscribe.
+
+BATCH F — remove debug/sensitive console logs:
+20. Remove debug console statements: brain-inspector.js (~31,40,43,49), emergence.js (~546,582), hive.js (~626), market.js (~27). 
+21. index.html (~813): REMOVE the console log of the WalletConnect pairing URI (mildly sensitive, shouldn't ship).
+
+Confirm each item 1–21 with file:line and OK/done. After all batches, do a final grep -n "innerHTML" across renderer/apps/*.js and renderer/index.html and flag any remaining injection of API/Ollama/user data that isn't escaped.

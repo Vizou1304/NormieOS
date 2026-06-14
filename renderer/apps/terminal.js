@@ -3,6 +3,12 @@ function openTerminal() {
     const win = body.closest('.os-window');
     if (win) { win.style.width = '640px'; win.style.height = '420px'; }
 
+    win?.querySelector('.window-close')?.addEventListener('click', () => {
+        clearInterval(window.matrixInterval);
+        window.matrixInterval = null;
+        document.getElementById('matrix-overlay')?.remove();
+    }, { once: true });
+
     body.style.padding = '0';
     body.style.display = 'flex';
     body.style.flexDirection = 'column';
@@ -47,7 +53,6 @@ function openTerminal() {
             print('  /burn-stats       — total Normies burned');
             print('  /zombie-scan      — Alpha status & stamina');
             print('  /traits           — list all Alpha attributes');
-            print('  /gas              — Ethereum gas prices');
             print('  /levelup          — canvas info: LVL, AP, CUSTOMIZED');
             print('  /burnlist         — last 10 burns from your wallet');
             print('  /vault            — list all Token IDs in wallet');
@@ -109,17 +114,6 @@ function openTerminal() {
                 const attrs = Array.isArray(meta.attributes) ? meta.attributes : [];
                 attrs.forEach(a => print(`   ${String(a.trait_type).padEnd(16)}: ${a.value}`));
                 if (!attrs.length) print('   (no traits found)');
-            } catch (err) { print(`ERROR: ${err.message}`); }
-
-        } else if (cmd === '/gas') {
-            print('>> FETCHING GAS...');
-            try {
-                const res = await fetch('https://api.etherscan.io/api?module=gastracker&action=gasoracle');
-                const data = await res.json();
-                const r = data.result;
-                print(`   SAFE    : ${r.SafeGasPrice} gwei`);
-                print(`   PROPOSE : ${r.ProposeGasPrice} gwei`);
-                print(`   FAST    : ${r.FastGasPrice} gwei`);
             } catch (err) { print(`ERROR: ${err.message}`); }
 
         } else if (cmd === '/matrix') {

@@ -10,8 +10,12 @@ async function openBurnWatch() {
         ]);
         if (!res.ok) { body.innerHTML = `<div class="native-loading">>> HTTP ${res.status}</div>`; return; }
         const data = await res.json();
-        let stats = null;
-        try { stats = statsRes?.ok ? await statsRes.json() : null; } catch {}
+        let stats = null, statsError = false;
+        if (!statsRes || !statsRes.ok) {
+            statsError = true;
+        } else {
+            try { stats = await statsRes.json(); } catch { statsError = true; }
+        }
         const commits = Array.isArray(data) ? data : (data.burns ?? data.data ?? []);
         if (!commits.length) { body.innerHTML = '<div class="native-loading">>> NO BURNS FOUND</div>'; return; }
 
@@ -48,17 +52,17 @@ async function openBurnWatch() {
 
         const cards = details.flatMap(({ commitId, by, time, pixels, burnedTokens }) => {
             if (!burnedTokens.length) {
-                return [`<div onclick="window.openBurnDetail(event,'${commitId}','${time}','${pixels}')" style="${ROW}">
+                return [`<div class="burn-row" data-commit-id="${window.escapeHTML(String(commitId))}" data-time="${window.escapeHTML(String(time))}" data-pixels="${window.escapeHTML(String(pixels))}" style="${ROW}">
                     <div style="width:32px;height:32px;border:1px solid #48494b;flex-shrink:0;background:#e3e5e4;"></div>
                     <span>? &nbsp; ${window.escapeHTML(short(by))}</span>
                 </div>`];
             }
             return burnedTokens.map(t => {
                 const tid = t.tokenId ?? t.token_id ?? t.id ?? t;
-                return `<div onclick="window.openBurnDetail(event,'${commitId}','${time}','${pixels}')" style="${ROW}">
+                return `<div class="burn-row" data-commit-id="${window.escapeHTML(String(commitId))}" data-time="${window.escapeHTML(String(time))}" data-pixels="${window.escapeHTML(String(pixels))}" style="${ROW}">
                     <img src="${window.API}/history/burned/${tid}/image.svg" onerror="this.style.visibility='hidden'" style="width:32px;height:32px;image-rendering:pixelated;border:1px solid #48494b;flex-shrink:0;">
                     <span style="flex:1;">#${window.escapeHTML(String(tid))} &nbsp; ${window.escapeHTML(short(by))}</span>
-                    <span style="color:#48494b;opacity:0.65;">${time}</span>
+                    <span style="color:#48494b;opacity:0.65;">${window.escapeHTML(String(time))}</span>
                 </div>`;
             });
         }).join('');
@@ -71,9 +75,9 @@ async function openBurnWatch() {
             </div>
             <div id="tab-burns" class="tab-content-panel" style="display:block;flex:1;overflow-y:auto;display:flex;flex-direction:column;">
                 <div style="padding:5px 10px;border-bottom:2px dashed #48494b;font-family:'Courier New',monospace;font-size:10px;color:#48494b;display:flex;gap:16px;flex-shrink:0;">
-                    <span>BURNED: ${stats?.totalBurnedTokens ?? '—'}</span>
-                    <span>TRANSFORMS: ${stats?.totalTransforms ?? '—'}</span>
-                    <span>AP DISTRIB: ${stats?.totalActionPointsDistributed ?? '—'}</span>
+                    <span>BURNED: ${statsError ? 'ERR' : (stats?.totalBurnedTokens ?? '—')}</span>
+                    <span>TRANSFORMS: ${statsError ? 'ERR' : (stats?.totalTransforms ?? '—')}</span>
+                    <span>AP DISTRIB: ${statsError ? 'ERR' : (stats?.totalActionPointsDistributed ?? '—')}</span>
                 </div>
                 <div style="flex:1;overflow-y:auto;">${cards}</div>
             </div>
@@ -96,6 +100,10 @@ async function openBurnWatch() {
                 </div>
             </div>
             `;
+
+        body.querySelectorAll('.burn-row').forEach(row => {
+            row.addEventListener('click', (e) => window.openBurnDetail(e, row.dataset.commitId, row.dataset.time, row.dataset.pixels));
+        });
 
         body.querySelectorAll('.window-tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -170,7 +178,7 @@ async function openBurnWatch() {
                 });
                 chShowVersion(0);
             } catch(err) {
-                list.innerHTML = `<div style="color:#48494b;opacity:0.65;font-size:10px;">>> ERROR: ${err.message}</div>`;
+                list.innerHTML = `<div style="color:#48494b;opacity:0.65;font-size:10px;">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
             }
         });
 
@@ -179,7 +187,7 @@ async function openBurnWatch() {
 
 
     } catch (err) {
-        body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
+        body.innerHTML = `<div class="native-loading">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
     }
 }
 
@@ -248,7 +256,7 @@ window.openBurnDetail = function(e, commitId, time, pixels) {
             }
         })
         .catch(err => {
-            modal.innerHTML = `<div style="color:#48494b;opacity:0.65;margin-bottom:10px;">>> ERROR: ${err.message}</div>${CLOSE_BTN}`;
+            modal.innerHTML = `<div style="color:#48494b;opacity:0.65;margin-bottom:10px;">>> ERROR: ${window.escapeHTML(err.message)}</div>${CLOSE_BTN}`;
         });
 };
 

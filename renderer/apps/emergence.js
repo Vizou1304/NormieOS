@@ -543,8 +543,6 @@ async function openEmergence() {
                 result      = buildResult(mult);
                 placedGlyphs = glyphData.filter(g => g.cells.some(c => result[c]));
             }
-            console.log(`[PIXEL RITUAL] placed glyphs: ${placedGlyphs.length} / ${agents.length} agents`);
-
             let canvasLayerCount = 0; // kept for export string compat
 
             // 5. Render + store for export
@@ -579,7 +577,6 @@ async function openEmergence() {
                 `<span style="font-weight:bold;">contributed by:</span> ${agents.map(a => a.name).join(', ')}`;
 
         } catch (err) {
-            console.error('EMERGENCE ENGINE CRASH:', err);
             statusEl.textContent = `>> ERROR: ${err.message}`;
         }
 

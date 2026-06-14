@@ -73,11 +73,11 @@ async function openBrainInspector() {
         try { localStorage.setItem(MEM_KEY, JSON.stringify(memHistory.slice(-20))); } catch {}
     };
 
-    const addMsg = (role, text) => {
+    const addMsg = (role, text, raw=false) => {
         const div = document.createElement('div');
         div.style.marginBottom = '8px';
         const dim = role === 'SYS' ? 'opacity:0.65;' : '';
-        div.innerHTML = `<span style="color:#48494b;font-weight:bold;${dim}">${role}:</span> ${text}`;
+        div.innerHTML = `<span style="color:#48494b;font-weight:bold;${dim}">${window.escapeHTML(role)}:</span> ${raw ? text : window.escapeHTML(text)}`;
         chat.appendChild(div);
         chat.scrollTop = chat.scrollHeight;
         return div;
@@ -98,7 +98,7 @@ async function openBrainInspector() {
         addMsg('USER', msg);
         memHistory.push({ role: 'USER', text: msg });
 
-        const thinking = addMsg('AGENT', '<span style="opacity:0.65;">...</span>');
+        const thinking = addMsg('AGENT', '<span style="opacity:0.65;">...</span>', true);
         window._ollamaBusy = true;
         try {
             const data = await window.fetchLocalAI(msg, systemPrompt, ollamaContext, abortController.signal);
@@ -111,7 +111,7 @@ async function openBrainInspector() {
             ledDot.style.background = '#48494b';
             ledLabel.innerText = 'OLLAMA: READY';
         } catch (err) {
-            thinking.innerHTML = `<span style="font-weight:bold;color:#48494b;">AGENT:</span> [OLLAMA OFFLINE — ${err.message}]`;
+            thinking.innerHTML = `<span style="font-weight:bold;color:#48494b;">AGENT:</span> [OLLAMA OFFLINE — ${window.escapeHTML(err.message)}]`;
             ledDot.style.background = '#48494b';
             ledLabel.innerText = 'OLLAMA: OFFLINE';
         } finally {

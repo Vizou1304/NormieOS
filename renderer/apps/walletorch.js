@@ -30,7 +30,7 @@ async function openWalletOrchestrator() {
                 <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px dashed rgba(72,73,75,0.25);">
                     <span style="flex:1;word-break:break-all;">${w.address}</span>
                     <span style="color:#48494b;">${w.count != null ? `${w.count} Normie(s)` : '...'}</span>
-                    <span style="color:#48494b;font-size:10px;">${w.delegated ? '[DELEGATED]' : '[NO DELEG]'}</span>
+                    <span style="color:#48494b;font-size:10px;">${w.delegated === null ? '[UNKNOWN]' : (w.delegated ? '[DELEGATED]' : '[NO DELEG]')}</span>
                     <button data-idx="${i}" class="wo-remove" style="border:1px solid #48494b;padding:2px 6px;font-family:'Courier New',monospace;font-size:10px;background:transparent;cursor:pointer;">×</button>
                 </div>`).join('')
             : '<div style="padding:20px;opacity:0.65;">No wallets added. Enter an address above.</div>';
@@ -49,7 +49,7 @@ async function openWalletOrchestrator() {
                 const info = await (await fetch(`${window.API}/normie/${ids[0]}/canvas/info`)).json();
                 w.delegated = !!(info.delegate && info.delegate !== '0x0000000000000000000000000000000000000000');
             } else { w.delegated = false; }
-        } catch { w.count = '?'; w.delegated = false; }
+        } catch { w.count = '?'; w.delegated = null; }
         renderList();
     };
 
@@ -57,7 +57,7 @@ async function openWalletOrchestrator() {
         const addr = addrInput.value.trim();
         if (!addr.match(/^0x[0-9a-fA-F]{40}$/)) return;
         if (wallets.find(w => w.address.toLowerCase() === addr.toLowerCase())) return;
-        wallets.push({ address: addr, count: null, delegated: false });
+        wallets.push({ address: addr, count: null, delegated: null });
         addrInput.value = '';
         renderList();
         scanWallet(wallets[wallets.length - 1]);

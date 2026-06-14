@@ -143,6 +143,13 @@
         if (win) { win.style.width = '618px'; win.style.height = '730px'; }
         body.style.cssText = 'padding:8px;background:#e3e5e4;overflow:auto;';
 
+        win?.querySelector('.window-close')?.addEventListener('click', () => {
+            if (window._mswGs && window._mswGs.iv) {
+                clearInterval(window._mswGs.iv);
+                window._mswGs.iv = null;
+            }
+        }, { once: true });
+
         if (!document.getElementById('msw-style')) {
             const s = document.createElement('style');
             s.id = 'msw-style';

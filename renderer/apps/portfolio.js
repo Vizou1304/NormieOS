@@ -28,7 +28,7 @@ async function openPortfolio() {
         const loadingEl = body.querySelector('.native-loading');
 
         // Collector profile from on-chain behavior
-        let burnCount = 0, awakenedCount = 0;
+        let burnCount = null, awakenedCount = null;
 
         if (loadingEl) loadingEl.textContent = '>> SYNCING BURNS PROTOCOL...';
         try {
@@ -53,7 +53,7 @@ async function openPortfolio() {
             awakenedCount = Object.keys(_bindings).length;
         } catch {}
 
-        const score = (tokenIds.length * 50) + (burnCount * 40) + (totalAP * 1.5) + (Math.log1p(totalPixels) * 150);
+        const score = (tokenIds.length * 50) + ((burnCount ?? 0) * 40) + (totalAP * 1.5) + (Math.log1p(totalPixels) * 150);
         let tierName = 'IRON';
         if (score >= 10000)     tierName = 'MYTHIC';
         else if (score >= 3000) tierName = 'GOLD';
@@ -61,7 +61,7 @@ async function openPortfolio() {
 
         let profile, profileDesc;
         if (score >= 10000)             { profile = 'MAÎTRE PIXELISTE';   profileDesc = 'Légende du canvas, sculpteur d\'âmes numériques.'; }
-        else if (burnCount >= 15)       { profile = 'BRÛLEUR LÉGENDAIRE'; profileDesc = 'Sacrifice et création — tes pixels vivent deux fois.'; }
+        else if ((burnCount ?? 0) >= 15) { profile = 'BRÛLEUR LÉGENDAIRE'; profileDesc = 'Sacrifice et création — tes pixels vivent deux fois.'; }
         else if (tokenIds.length >= 30) { profile = 'GARDIEN DU LEDGER';  profileDesc = 'Gardien des Normies, moteur de l\'écosystème.'; }
         else if (totalPixels >= 600)    { profile = 'ARTISTE ÉVEILLÉ';    profileDesc = 'Tes pixels parlent pour toi. Art et action fusionnent.'; }
         else                            { profile = 'INITIATE';            profileDesc = 'Bienvenue dans le pixel. Chaque Normie compte, chaque pixel compte.'; }
@@ -91,7 +91,7 @@ async function openPortfolio() {
                     </div>
                     <div class="pf-row">
                         <span>BURNS</span>
-                        <span>${burnCount} sacrifice${burnCount !== 1 ? 's' : ''}</span>
+                        <span>${burnCount === null ? 'ERR' : `${burnCount} sacrifice${burnCount !== 1 ? 's' : ''}`}</span>
                     </div>
                 </div>
                 <div style="margin:8px 12px;padding:8px;border:2px solid #48494b;font-family:'Courier New',monospace;font-size:10px;color:#48494b;">
@@ -117,7 +117,7 @@ async function openPortfolio() {
         body.closest('.os-window')?.querySelector('.window-close')?.addEventListener('click', () => unsub.forEach(u => u()), { once: true });
 
     } catch (err) {
-        body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
+        body.innerHTML = `<div class="native-loading">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
     }
 }
 

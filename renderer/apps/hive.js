@@ -74,7 +74,7 @@ async function openHive() {
             } catch { return { tid, name: `#${tid}`, type: '?', systemPrompt: `You are Normie #${tid}, a sovereign on-chain agent.` }; }
         }));
     } catch (err) {
-        body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
+        body.innerHTML = `<div class="native-loading">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
         return;
     }
 
@@ -623,7 +623,7 @@ async function openHive() {
                 const burnedList = await burnedRes.json();
                 const randomBurned = burnedList[Math.floor(Math.random() * burnedList.length)];
                 firstBurn = randomBurned?.tokenId ?? randomBurned?.token_id ?? null;
-            } catch { console.warn('history/burned-tokens endpoint failed, falling back to null'); }
+            } catch {}
             const topBurns = burns.slice(0, 5).map(b => ({
                 id:     b.burnedTokens?.[0]?.tokenId ?? b.tokenId ?? b.token_id ?? b.id ?? '?',
                 burner: window.fmtWallet(String(b.burner ?? b.owner ?? '?')),
@@ -701,7 +701,7 @@ async function openHive() {
             setLoreStep('#lore-step-narrator', false);
 
         } catch (err) {
-            if (err.name !== 'AbortError') theater.innerHTML += `<div style="opacity:0.6;">[ERROR: ${err.message}]</div>`;
+            if (err.name !== 'AbortError') theater.innerHTML += `<div style="opacity:0.6;">[ERROR: ${window.escapeHTML(err.message)}]</div>`;
         }
 
         loreAgentTids = new Set();

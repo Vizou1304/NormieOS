@@ -101,7 +101,7 @@ async function openInventory() {
         renderGrid();
 
     } catch (err) {
-        body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
+        body.innerHTML = `<div class="native-loading">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
     }
 }
 

@@ -443,7 +443,7 @@
             overlay.id = 'tour-prompt';
             overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10000;background:rgba(72,73,75,0.88);';
             const agentLabel = window.currentAgentPersona?.name
-                ? `${window.currentAgentPersona.name} — #${window.currentAlphaId}`
+                ? `${window.escapeHTML(window.currentAgentPersona.name)} — #${window.currentAlphaId}`
                 : `AGENT #${window.currentAlphaId ?? '?'}`;
 
             if (!aiReady) {
@@ -810,7 +810,6 @@
                 });
 
                 if (uri) {
-                    console.log('WalletConnect URI:', uri);
                     container.innerHTML = '';
                     new QRCode(container, { text: uri, width: 256, height: 256, colorDark: '#48494b', colorLight: '#e3e5e4' });
                     status.innerText = 'SCAN WITH METAMASK MOBILE';
@@ -1310,8 +1309,6 @@
             simulator: `<rect x="2" y="2" width="12" height="12" fill="currentColor"/><rect x="4" y="0" width="8" height="2" fill="currentColor"/><rect x="4" y="14" width="8" height="2" fill="currentColor"/><rect x="0" y="4" width="2" height="8" fill="currentColor"/><rect x="14" y="4" width="2" height="8" fill="currentColor"/><rect x="5" y="4" width="2" height="2" class="icon-cutout"/><rect x="9" y="4" width="2" height="2" class="icon-cutout"/><rect x="7" y="7" width="2" height="2" class="icon-cutout"/><rect x="5" y="10" width="2" height="2" class="icon-cutout"/><rect x="9" y="10" width="2" height="2" class="icon-cutout"/>`,
             // VINYL — disque vinyl vue de dessus avec trou central
             vinyl: `<rect x="4" y="0" width="8" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="1" fill="currentColor"/><rect x="1" y="2" width="14" height="1" fill="currentColor"/><rect x="0" y="3" width="16" height="4" fill="currentColor"/><rect x="0" y="7" width="7" height="2" fill="currentColor"/><rect x="9" y="7" width="7" height="2" fill="currentColor"/><rect x="0" y="9" width="16" height="4" fill="currentColor"/><rect x="1" y="13" width="14" height="1" fill="currentColor"/><rect x="2" y="14" width="12" height="1" fill="currentColor"/><rect x="4" y="15" width="8" height="1" fill="currentColor"/>`,
-            // GUARD — bouclier pixel
-            normieguard: `<rect x="4" y="0" width="8" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="1" fill="currentColor"/><rect x="1" y="2" width="14" height="6" fill="currentColor"/><rect x="2" y="8" width="12" height="1" fill="currentColor"/><rect x="3" y="9" width="10" height="1" fill="currentColor"/><rect x="4" y="10" width="8" height="1" fill="currentColor"/><rect x="5" y="11" width="6" height="1" fill="currentColor"/><rect x="6" y="12" width="4" height="1" fill="currentColor"/><rect x="7" y="13" width="2" height="1" fill="currentColor"/>`,
             // NOTEPAD — page + lines + spiral
             notepad: `<rect x="2" y="1" width="1" height="13" fill="currentColor"/><rect x="13" y="1" width="1" height="13" fill="currentColor"/><rect x="2" y="13" width="12" height="1" fill="currentColor"/><rect x="2" y="1" width="12" height="2" fill="currentColor"/><rect x="5" y="0" width="2" height="2" fill="currentColor"/><rect x="9" y="0" width="2" height="2" fill="currentColor"/><rect x="4" y="5" width="8" height="1" fill="currentColor"/><rect x="4" y="7" width="8" height="1" fill="currentColor"/><rect x="4" y="9" width="8" height="1" fill="currentColor"/><rect x="4" y="11" width="5" height="1" fill="currentColor"/>`,
             // TRASH — poubelle pixel
@@ -1534,7 +1531,6 @@
             simulator:     () => openArenaSimulator(),
             alphaswitch:   () => openAlphaSwitch(),
             controlpanel:  () => openControlPanel(),
-            normieguard:   () => openNormieGuard(),
             vinyl:         () => openVinyl(),
             emergence:     () => window.openEmergence?.(),
             trash:         () => window.openTrash?.(),
@@ -1620,7 +1616,7 @@
                 <div data-log-idx="${i}" style="padding:6px 10px;border-bottom:1px solid rgba(227,229,228,0.15);cursor:${e.appTarget ? 'pointer' : 'default'};">
                     <span style="opacity:0.55;">${_fmtTime(e.timestamp)}</span>
                     <span style="margin-left:6px;font-weight:bold;letter-spacing:1px;">[${e.type}]</span>
-                    <span style="margin-left:4px;">${e.message}</span>
+                    <span style="margin-left:4px;">${window.escapeHTML(e.message)}</span>
                     ${e.appTarget ? `<span style="opacity:0.5;margin-left:4px;">&gt;</span>` : ''}
                 </div>`).join('');
             _logPanel.querySelectorAll('[data-log-idx]').forEach(row => {
@@ -1669,8 +1665,8 @@
             if (!bubble) return;
             clearTimeout(bubble._dismissTimer);
             bubble.innerHTML = (agentName
-                ? `<div style="font-weight:bold;letter-spacing:1px;margin-bottom:4px;">${agentName.toUpperCase()}</div>` : '')
-                + `<div>${text}</div>`;
+                ? `<div style="font-weight:bold;letter-spacing:1px;margin-bottom:4px;">${window.escapeHTML(agentName.toUpperCase())}</div>` : '')
+                + `<div>${window.escapeHTML(text)}</div>`;
             // Show immediately at opacity 0 so offsetHeight is calculable
             bubble.style.display    = 'block';
             bubble.style.opacity    = '0';
@@ -1713,7 +1709,6 @@
     <script src="apps/tools.js"></script>
     <script src="apps/nexus.js"></script>
     <script src="apps/controlpanel.js"></script>
-    <script src="apps/guard.js"></script>
     <script src="apps/vinyl.js"></script>
     <script src="apps/alphaswitch.js"></script>
     <script src="apps/burnwatch.js"></script>

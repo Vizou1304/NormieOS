@@ -212,7 +212,6 @@ normie-os/
 | terminal       | SHELL      | CORE       | ✅ |
 | appdirectory   | NEXUS      | COMMUNITY  | ✅ ALL/OFFICIAL/COMMUNITY/ERC-8257 |
 | controlpanel   | MAINFRAME  | CORE       | ✅ 4 onglets + Neural Engine |
-| normieguard    | GUARD      | CORE       | ✅ dashboard bouclier |
 | vinyl          | VINYL      | COMMUNITY  | ✅ |
 | community-media | MEDIA     | COMMUNITY  | ✅ Grille de mèmes et GIFs |
 | solitaire      | SOLITAIRE  | GAMES      | 🔧 bug deck As |
@@ -226,7 +225,7 @@ normie-os/
 - [x] HIVE v0.1 — 3 agents en chaîne, personas on-chain
 - [x] NormieLore Collective — pixel theater, image burned aléatoire
 - [x] EMERGENCE v0.1 → v2 — Fibonacci + Neural Intent + progressive render
-- [x] GUIDED BOOT TOUR — typewriter, séquence CORTEX→HIVE→EMERGENCE→GUARD, choix YES/SKIP
+- [x] GUIDED BOOT TOUR — typewriter, séquence CORTEX→HIVE→EMERGENCE, choix YES/SKIP
 - [x] EMERGENCE shadow app — visible grisée avec compteur live
 - [x] Grille d'icônes Start Menu 3 colonnes
 - [x] Taskbar icônes uniquement + tooltips
@@ -235,7 +234,6 @@ normie-os/
 - [x] Navigateur intégré Electron — setWindowOpenHandler, zéro bascule OS
 - [x] WalletConnect v2 réactivé — QR code, Project ID configuré
 - [x] Agent daemon arrière-plan — notifs BURN/AGENT/TRANSFORM via Ollama
-- [x] NORMIE GUARD — polling /holders/ 30s, alertes NFT_GONE, dashboard bouclier
 - [x] MAINFRAME — 4 onglets + Neural Engine 5 profils
 - [x] NEXUS ERC-8257 — onglet dédié, multi-chain (BASE/ETH)
 - [x] Notifications système — NormieNotifier renderer/core/notifications.js

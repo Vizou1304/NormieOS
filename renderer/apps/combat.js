@@ -170,7 +170,7 @@ async function openCombat() {
         col.innerHTML = `
             <img src="${API}/normie/${f.id}/image.svg" class="normie-avatar"
                  style="width:120px;height:120px;image-rendering:pixelated;border:1px solid #48494b;">
-            <div style="font-weight:bold;font-size:13px;letter-spacing:1px;text-align:center;">${f.name}</div>
+            <div style="font-weight:bold;font-size:13px;letter-spacing:1px;text-align:center;">${window.escapeHTML(f.name)}</div>
             <div style="font-size:11px;text-align:center;line-height:2;color:#48494b;">
                 LVL &nbsp;&nbsp;: ${f.level}<br>
                 AP &nbsp;&nbsp;&nbsp;: ${f.ap}<br>
@@ -188,7 +188,7 @@ async function openCombat() {
             renderCol(col, f);
         } catch (e) {
             logLine(`> ERROR: ${e.message}`);
-            col.innerHTML = `<div style="font-size:11px;color:#48494b;opacity:0.65;">> ERROR: ${e.message}</div>`;
+            col.innerHTML = `<div style="font-size:11px;color:#48494b;opacity:0.65;">> ERROR: ${window.escapeHTML(e.message)}</div>`;
         }
     };
 

@@ -23,8 +23,7 @@ async function openMarketPulse() {
                         }
                     }
                 }
-            } catch (e) {
-                console.error('Direct 24h burn calculation failed:', e);
+            } catch {
                 liveSacrificesToday = 6;
             }
             if (window.NormieState?.burnStats) window.NormieState.burnStats.todayCount = liveSacrificesToday;
@@ -79,7 +78,7 @@ async function openMarketPulse() {
                 await render();
             });
         } catch (err) {
-            body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
+            body.innerHTML = `<div class="native-loading">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
         }
     }
 

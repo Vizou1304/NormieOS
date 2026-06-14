@@ -14,10 +14,13 @@ async function openAlphaSwitch() {
         const tokenIds = window.NormieState?.normieIds ?? [];
         if (!tokenIds.length) { body.innerHTML = '<div class="native-loading">>> NO NORMIES FOUND</div>'; return; }
         body.innerHTML = `<div class="alpha-grid">${tokenIds.map(id => `
-            <img src="${window.API}/normie/${id}/image.svg" class="alpha-cell normie-avatar" title="Switch to #${id}" onclick="window.switchAlpha('${id}')">
+            <img src="${window.API}/normie/${id}/image.svg" class="alpha-cell normie-avatar" title="Switch to #${id}" data-id="${id}">
         `).join('')}</div>`;
+        body.querySelectorAll('.alpha-cell').forEach(cell => {
+            cell.addEventListener('click', () => window.switchAlpha(cell.dataset.id));
+        });
     } catch (err) {
-        body.innerHTML = `<div class="native-loading">>> ERROR: ${err.message}</div>`;
+        body.innerHTML = `<div class="native-loading">>> ERROR: ${window.escapeHTML(err.message)}</div>`;
     }
 }
 

@@ -54,7 +54,7 @@ async function openAwakening() {
             ${rows.map(({ id, name, awakened }) => `
                 <div style="width:130px;text-align:center;font-family:'Courier New',monospace;font-size:10px;color:#48494b;border:1px solid #48494b;padding:6px;background:#e3e5e4;">
                     <img src="${window.API}/normie/${id}/image.svg" class="normie-avatar" style="image-rendering:pixelated;display:block;margin:0 auto 4px;">
-                    <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+                    <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${window.escapeHTML(name)}</div>
                     ${awakened
                         ? `<div style="color:#48494b;margin-top:4px;">● AWAKENED</div>`
                         : `<div style="color:#48494b;margin-top:3px;">○ DORMANT</div>
