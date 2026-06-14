@@ -1,23 +1,4 @@
-As the Architect, we need to optimize the UX of the Emergence app in 'renderer/apps/emergence.js'. We want to remove the live AI thought text to keep the UI clean, and we must pre-fetch the agents before allowing the user to click Generate.
-
-Please make the following architectural updates:
-
-REMOVE THE DELIBERATION TEXT:
-
-In the body.innerHTML layout, completely delete the <div id="em-deliberation"> element.
-
-Delete the deliberateEl variable declaration.
-
-Inside the generate function, inside the Ollama deliberation loop, completely delete all lines of code that append text to deliberateEl. We only want to keep the final #em-contributors logic at the very end of the function.
-
-PRE-FETCH AGENTS (BLOCK GENERATION UNTIL READY):
-
-In the HTML layout, add the disabled attribute to the #em-generate button and change its default text to [ AWAKENING HIVE... ].
-
-Extract the agent pool fetching logic (the pagination loop that fetches up to 500 agents and saves to window.NormieCache) out of the generate function.
-
-Place this fetching logic into a self-executing async function that runs immediately when openEmergence is called.
-
-Once this initial fetch is complete and the agents are successfully cached, enable the #em-generate button and change its text to [ GENERATE NEW ].
-
-The generate function should now simply retrieve the agents from the cache synchronously, rather than fetching them.
+REMOVE 'GUARD' FROM THE START MENU:
+   - Locate the Start Menu app grid generation logic or the native apps registration array (likely in 'renderer/index.html' or your main OS script).
+   - Find the configuration, array object, or hardcoded HTML block for the 'GUARD' app (its key is likely 'normieguard' or 'guard').
+   - Completely remove it so the shield icon and the "GUARD" label no longer appear in the Start Menu grid.
